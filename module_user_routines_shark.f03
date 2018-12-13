@@ -73,11 +73,11 @@ type type_sam
    real*4      :: rgas_bulge     ! [cMpc/h] half-mass radius of gas in the bulge
    real*4      :: mvir_hosthalo  ! [Msun/h]
    real*4      :: mvir_subhalo   ! [Msun/h]
-   real*4      :: cnfw_subhalo   ! [-] concentration of NFW fit to subhalo
-   real*4      :: vvir_hosthalo  ! [km/s]	virial velocity of hosthalo
-   real*4      :: vvir_subhalo   ! [km/s]	virial velocity of subhalo
-   real*4      :: vmax_subhalo   ! [km/s]	maximum circular velocity of subhalo
-   
+   real*4      :: cnfw_subhalo   ! [-]      concentration of NFW fit to subhalo
+   real*4      :: vvir_hosthalo  ! [km/s]   virial velocity of hosthalo
+   real*4      :: vvir_subhalo   ! [km/s]   virial velocity of subhalo
+   real*4      :: vmax_subhalo   ! [km/s]   maximum circular velocity of subhalo
+   real*4      :: sfr_disk       ! [1/Gyr]  star-formation rate of the disk   
 contains
 
    procedure   :: get_position      => sam_get_position     ! required function
@@ -157,7 +157,7 @@ type,extends(type_sky_object) :: type_sky_galaxy ! must exist
    real*4      :: vvir_subhalo            ! [km/s]	virial velocity of subhalo
    real*4      :: vmax_subhalo            ! [km/s]	maximum circular velocity of subhalo
    real*4      :: cnfw_subhalo            ! [-] concentration of NFW fit to subhalo
-   
+   real*4      :: sfr_disk                ! [1/Gyr]     star-formation rate of the disk
    contains
    
    procedure   :: make_from_sam  => make_sky_galaxy   ! required subroutine
@@ -306,7 +306,7 @@ subroutine make_sky_galaxy(sky_galaxy,sam,base,groupid,galaxyid)
    ! intrinsic angular momentum
    pseudo_rotation   = tile(base%tile)%Rpseudo
    sky_galaxy%J      = rotate(pseudo_rotation,sam%J)
-      
+   sky_galaxy%sfr_disk = sam%sfr_disk   
    ! intrinsic radii
    sky_galaxy%rstar_disk_intrinsic = sam%rstar_disk ! [cMpc/h]
    sky_galaxy%rstar_bulge_intrinsic = sam%rstar_bulge ! [cMpc/h]
@@ -714,7 +714,7 @@ subroutine make_hdf5
    call hdf5_write_data(trim(name)//'/vmax_subhalo',sky_galaxy%vmax_subhalo,'[km/s] maximum circular velocity of the subhalo')
    call hdf5_write_data(trim(name)//'/vvir_subhalo',sky_galaxy%vvir_subhalo,'[km/s] virial velocity of the subhalo')
    call hdf5_write_data(trim(name)//'/vvir_hosthalo',sky_galaxy%vmax_subhalo,'[km/s] virial velocity of the hosthalo')
-
+   call hdf5_write_data(trim(name)//'/sfr_disk',sky_galaxy%sfr_disk,'[1/Gyr] star-formation rate of the disk']
    
    
    test(1) = n
