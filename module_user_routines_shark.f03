@@ -35,7 +35,7 @@ public :: custom_routines
 ! "parameterfile"
 
 character(len=255),parameter  :: parameter_filename_default = &
-   & '/Users/do/Dropbox/Code/Fortran/stingray/stingray/parameters.txt'
+   & '/Users/do/Dropbox/Code/Fortran/stingray/parameters.txt'
 
 
 ! ==============================================================================================================
@@ -710,6 +710,13 @@ subroutine make_hdf5
    &'[cMpc/h] intrinsic half-mass radius of gas disk')
    call hdf5_write_data(trim(name)//'/rgas_bulge_intrinsic',sky_galaxy%rgas_bulge_intrinsic,&
    &'[cMpc/h] intrinsic half-mass radius of gas bulge')
+   call hdf5_write_data(trim(name)//'/cnfw_subhalo',sky_galaxy%cnfw_subhalo,'concentration parameter')
+   call hdf5_write_data(trim(name)//'/vmax_subhalo',sky_galaxy%vmax_subhalo,'[km/s] maximum circular velocity of the subhalo')
+   call hdf5_write_data(trim(name)//'/vvir_subhalo',sky_galaxy%vvir_subhalo,'[km/s] virial velocity of the subhalo')
+   call hdf5_write_data(trim(name)//'/vvir_hosthalo',sky_galaxy%vmax_subhalo,'[km/s] virial velocity of the hosthalo')
+
+   
+   
    test(1) = n
    test(3) = sum(sky_galaxy%tile)
    test(4) = sum(sky_galaxy%inclination)

@@ -6,18 +6,19 @@
 survey                  test
 
 # Paths
-path_output             /Users/do/Data/SURFS/stingray/shark/output/
+path_output               /scratch/pawsey0119/gchauhan/micro-SURFS/Shark-Lagos18-final/
+#path_output              /scratch/pawsey0119/gchauhan/medi-SURFS/Shark-Lagos18-final/
 #path_output             /mnt/su3ctm/dobreschkow/Stingray/output/
-path_input              /Users/do/Data/SURFS/stingray/shark/input/
+path_input               /group/pawsey0119/gchauhan/SHArk_Out/micro-SURFS/Shark-Lagos18-final/
 #path_input              /mnt/su3ctm/clagos/SHARK_Out/medi-SURFS/Shark-Lagos18-final/
 
 # Snapshot parameters
 L                       auto           [length_unit] side-length of simulation box
 length_unit             auto           [m] SI-value of comoving length unit, here Mpc/h
-snapshot_min            120
-snapshot_max            199
+snapshot_min            auto
+snapshot_max            auto
 subvolume_min           auto
-subvolume_max           0
+subvolume_max           auto
 
 # Cosmology
 h                       auto           [-] Hubble parameter H0=h*100 km/s/Mpc
@@ -28,7 +29,7 @@ omega_b                 auto           Space density of baryonic matter relative
 # Considered distance range and field-of-view. Additional and/or more complex positional selection criteria can
 # be coded in the user module function "pos_selection".
 dc_min                  0              [simulation units] minimal comoving distance
-dc_max                  200            [simulation units] maximal comoving distance
+dc_max                  260            [simulation units] maximal comoving distance
 ra_min                  0              [deg] min right ascension
 ra_max                  360            [deg] max right ascension
 dec_min                 -90            [deg] min declination
