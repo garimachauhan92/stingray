@@ -51,7 +51,7 @@ character(len=255),parameter  :: parameter_filename_default = &
 
 type type_sam
 
-   integer*8   :: id_galaxy      ! unique galaxy ID
+   integer*4   :: id_galaxy      ! unique galaxy ID
    integer*8   :: id_halo        ! unique ID of parent halo
    integer*4   :: snapshot       ! snapshot ID
    integer*4   :: subvolume      ! subvolume index
@@ -77,7 +77,8 @@ type type_sam
    real*4      :: vvir_hosthalo  ! [km/s]   virial velocity of hosthalo
    real*4      :: vvir_subhalo   ! [km/s]   virial velocity of subhalo
    real*4      :: vmax_subhalo   ! [km/s]   maximum circular velocity of subhalo
-   real*4      :: sfr_disk       ! [1/Gyr]  star-formation rate of the disk   
+   real*4      :: sfr_disk       ! [1/Gyr]  star-formation rate of the diski
+   real*4      :: sfr_burst      ! [1/Gyr]  star-formation rate during a merger   
 contains
 
    procedure   :: get_position      => sam_get_position     ! required function
@@ -158,6 +159,7 @@ type,extends(type_sky_object) :: type_sky_galaxy ! must exist
    real*4      :: vmax_subhalo            ! [km/s]	maximum circular velocity of subhalo
    real*4      :: cnfw_subhalo            ! [-] concentration of NFW fit to subhalo
    real*4      :: sfr_disk                ! [1/Gyr]     star-formation rate of the disk
+   real*4      :: sfr_burst               ! [1/Gyr]     star-formation rate during merger
    contains
    
    procedure   :: make_from_sam  => make_sky_galaxy   ! required subroutine
@@ -304,9 +306,11 @@ subroutine make_sky_galaxy(sky_galaxy,sam,base,groupid,galaxyid)
    sky_galaxy%mmol_bulge      = sam%mmol_bulge  
    
    ! intrinsic angular momentum
-   pseudo_rotation   = tile(base%tile)%Rpseudo
-   sky_galaxy%J      = rotate(pseudo_rotation,sam%J)
-   sky_galaxy%sfr_disk = sam%sfr_disk   
+   pseudo_rotation           = tile(base%tile)%Rpseudo
+   sky_galaxy%J              = rotate(pseudo_rotation,sam%J)
+   sky_galaxy%sfr_disk       = sam%sfr_disk
+   sky_galaxy%sfr_burst      = sam%sfr_burst   
+   
    ! intrinsic radii
    sky_galaxy%rstar_disk_intrinsic = sam%rstar_disk ! [cMpc/h]
    sky_galaxy%rstar_bulge_intrinsic = sam%rstar_bulge ! [cMpc/h]
@@ -528,7 +532,9 @@ subroutine load_sam_snapshot(index,subindex,sam)
    call hdf5_read_data(g//'vvir_subhalo',sam%vvir_subhalo)
    call hdf5_read_data(g//'vmax_subhalo',sam%vmax_subhalo)
    call hdf5_read_data(g//'vvir_hosthalo',sam%vvir_hosthalo)
-   
+   call hdf5_read_data(g//'sfr_disk',sam%sfr_disk) 
+   call hdf5_read_data(g//'sfr_burst',sam%sfr_burst)   
+
    ! assign other properties
    sam%snapshot = index
    sam%subvolume = subindex
@@ -714,8 +720,8 @@ subroutine make_hdf5
    call hdf5_write_data(trim(name)//'/vmax_subhalo',sky_galaxy%vmax_subhalo,'[km/s] maximum circular velocity of the subhalo')
    call hdf5_write_data(trim(name)//'/vvir_subhalo',sky_galaxy%vvir_subhalo,'[km/s] virial velocity of the subhalo')
    call hdf5_write_data(trim(name)//'/vvir_hosthalo',sky_galaxy%vmax_subhalo,'[km/s] virial velocity of the hosthalo')
-   call hdf5_write_data(trim(name)//'/sfr_disk',sky_galaxy%sfr_disk,'[1/Gyr] star-formation rate of the disk']
-   
+   call hdf5_write_data(trim(name)//'/sfr_disk',sky_galaxy%sfr_disk,'[1/Gyr] star-formation rate of the disk')
+   call hdf5_write_data(trim(name)//'/sfr_burst',sky_galaxy%sfr_burst,'[1/Gyr] star-formation rate after the mergers')
    
    test(1) = n
    test(3) = sum(sky_galaxy%tile)
