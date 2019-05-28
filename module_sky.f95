@@ -104,8 +104,8 @@ subroutine make_sky
                   write(str,'(A,A,I0,A,I0,A,I0,A,I0,A,I0,A)') trim(strt),': Write snapshot ',index(i,1),', subvolume ', &
                      & index(i,2),' into tile ',itile,' (',n_galaxies,'/',n_galaxies_tot,' galaxies)'
                   call out(trim(str))
-                  if ((n_galaxies_tot>=1e8_8).and.(n_galaxies_tot-n_galaxies<1e8_8)) call error(&
-                  &'The cone has reached 1e8 galaxies. Consider using a more restrictive selection function.')
+                  !if ((n_galaxies_tot>=1e8_8).and.(n_galaxies_tot-n_galaxies<1e8_8)) call error(&
+                  !&'The cone has reached 1e8 galaxies. Consider using a more restrictive selection function.')
                   !$OMP END CRITICAL
                end if
             end do
