@@ -45,10 +45,27 @@ logical function pos_selection(dc,ra,dec) result(selected)
    case ('alfalfa')
       selected = ((dec>= 0.000).and.(dec<= 36.000)).and. &
                & (((ra>= 112.500).and.(ra<= 247.500)).or.((ra>= 330.000).or.(ra<= 45.000))).and. &
-               & (dc<260.0)
-   case ('wallaby')
-      selected = ((dec>= -90.000).and.(dec<=30.000).and.(ra>=0.00).and.(ra<=90.0))
-   case default
+               & (dc<300.0)
+   case ('wallaby_1')
+      selected = ((dec>= -90.000).and.(dec<=30.000).and.(ra>=0.00).and.(ra<=10.0))
+   case ('wallaby_2')
+      selected = ((dec>=-90.000).and.(dec<=30.000).and.(ra>10.00).and.(ra<=20.0))
+   case ('wallaby_3')
+      selected = ((dec>=-90.000).and.(dec<=30.000).and.(ra>20.00).and.(ra<=30.0))
+   case ('wallaby_4')
+      selected =((dec>=-90.000).and.(dec<=30.000).and.(ra>30.00).and.(ra<=40.0))
+   case ('wallaby_5')
+      selected =((dec>=-90.000).and.(dec<=30.000).and.(ra>40.00).and.(ra<=50.0))
+   case ('wallaby_6')
+      selected =((dec>=-90.000).and.(dec<=30.000).and.(ra>50.00).and.(ra<=60.0))
+   case ('wallaby_7')
+      selected =((dec>=-90.000).and.(dec<=30.000).and.(ra>60.00).and.(ra<=70.0))   
+   case ('wallaby_8')
+      selected =((dec>=-90.000).and.(dec<=30.000).and.(ra>70.00).and.(ra<=80.0))
+   case ('wallaby_9')
+      selected =((dec>=-90.000).and.(dec<=30.000).and.(ra>80.00).and.(ra<=90.0))
+      
+case default
       selected = .true.
    end select
 
@@ -69,9 +86,28 @@ logical function sam_selection(sam) result(selected)
    case ('gama')
       selected = (sam%mstars_disk>1e8)
    case ('alfalfa')
-      selected = (sam%mgas_disk>1e6).or.((sam%matom_disk>1e6))
+      selected = ((sam%mgas_disk + sam%mgas_bulge)>=1e5).or.((sam%matom_bulge + sam%matom_disk)>=1e5)
    case ('wallaby')
-      selected = ((sam%mstars_disk + sam%mstars_bulge)>1e5)
+      selected = (sam%mstars_disk >= 1e5)
+   case ('wallaby_1')
+      selected = ((sam%mstars_disk + sam%mstars_bulge)>1e6)
+   case ('wallaby_2')
+      selected = ((sam%mstars_disk + sam%mstars_bulge)>1e6)
+   case ('wallaby_3')
+      selected = ((sam%mstars_disk + sam%mstars_bulge)>1e6)
+   case ('wallaby_4')
+      selected = ((sam%mstars_disk + sam%mstars_bulge)>1e6)
+   case ('wallaby_5')
+      selected = ((sam%mstars_disk + sam%mstars_bulge)>1e6)
+   case ('wallaby_6')
+      selected = ((sam%mstars_disk + sam%mstars_bulge)>1e6)
+   case ('wallaby_7')
+      selected = ((sam%mstars_disk + sam%mstars_bulge)>1e6)
+   case ('wallaby_8')
+      selected = ((sam%mstars_disk + sam%mstars_bulge)>1e6)
+   case ('wallaby_9')
+      selected = ((sam%mstars_disk + sam%mstars_bulge)>1e6)
+
    case default
       selected = .true.
    end select
@@ -97,6 +133,25 @@ logical function sky_selection(sky,sam) result(selected)
       selected = sam%matom_disk>10000.0*sky%dc**2
    case ('wallaby')
       selected = .true.
+   case ('wallaby_1')
+      selected = sky%mag<= 22+dmag
+   case ('wallaby_2')
+      selected = sky%mag<= 22+dmag
+   case ('wallaby_3')
+      selected = sky%mag<= 22+dmag
+   case ('wallaby_4')
+      selected = sky%mag<= 22+dmag
+   case ('wallaby_5')
+      selected = sky%mag<= 22+dmag
+   case ('wallaby_6')
+      selected = sky%mag<= 22+dmag
+   case ('wallaby_7')
+      selected = sky%mag<= 22+dmag
+   case ('wallaby_8')
+      selected = sky%mag<= 22+dmag
+   case ('wallaby_9')
+      selected = sky%mag<= 22+dmag
+
    case default
       selected = .true.
    end select
