@@ -24,7 +24,6 @@ else
 endif
 
 
-<<<<<<< HEAD
 # Compiler flags for optimized execution
 #FCFLAGS = -O3 -fopenmp -I/usr/local/lib/hdf5/include -L/usr/local/lib/hdf5/lib -lhdf5_fortran -lhdf5
 
@@ -63,7 +62,6 @@ $(info Compilation options:)
 $(info + Computing system = '${system}'.)
 $(info + Compiling mode = '${mode}'.)
 $(info + Galaxy formation model = '${sam}'.)
->>>>>>> upstream/master
 
 # List of executables to be built within the package
 PROGRAMS = stingray
@@ -130,7 +128,6 @@ clean:
 	rm -f *.o *.mod *.MOD
 	rm -f *~ $(PROGRAMS)
 	rm -f fort.*
-<<<<<<< HEAD
+
 =======
 	rm -rf *.dSYM
->>>>>>> upstream/master
