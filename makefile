@@ -23,29 +23,34 @@ else
    mode = standard
 endif
 
+FCFLAGS = -g -O3 -fopenmp -I/opt/bldr/local/storage/hdf5/1.10.2/include -L/opt/bldr/local/storage/hdf5/1.10.2/lib -lhdf5_fortran -lhdf5 -ffree-line-length-none
+
+
 
 # custom flags to load the HDF5 library
-hdfflags = empty
-ifeq ($(system),ems) # private laptop of developer Obreschkow
-   hdfflags = -I/usr/local/include -L/usr/local/lib -lhdf5_fortran -lhdf5
-endif
-ifeq ($(system),ism49) # private backup laptop of developer Obreschkow
-   hdfflags = -I/usr/local/lib/hdf5/include -L/usr/local/lib/hdf5/lib -lhdf5_fortran -lhdf5
-endif
-ifeq ($(system),hyades) # in-house cluster at ICRAR/UWA
-   hdfflags = -I/opt/bldr/local/storage/hdf5/1.10.2/include -L/opt/bldr/local/storage/hdf5/1.10.2/lib -lhdf5_fortran -lhdf5
-endif
-ifeq ($(hdfflags),empty)
-   $(info ERROR unknown system: '${system}')
-stop
-endif
+# hdfflags = empty
+# ifeq ($(system),ems) # private laptop of developer Obreschkow
+#    hdfflags = -I/usr/local/include -L/usr/local/lib -lhdf5_fortran -lhdf5
+# endif
+# ifeq ($(system),ism49) # private backup laptop of developer Obreschkow
+#    hdfflags = -I/usr/local/lib/hdf5/include -L/usr/local/lib/hdf5/lib -lhdf5_fortran -lhdf5
+# endif
+# ifeq ($(system),hyades) # in-house cluster at ICRAR/UWA
+#    hdfflags = -I/opt/bldr/local/storage/hdf5/1.10.2/include -L/opt/bldr/local/storage/hdf5/1.10.2/lib -lhdf5_fortran -lhdf5
+# endif
+# ifeq ($(hdfflags),empty)
+#    $(info ERROR unknown system: '${system}')
+# stop
+# endif
 
-# make all compiler flags
-ifeq ($(mode),standard)
-   FCFLAGS = -g $(hdfflags) -O3 -fopenmp
-else
-   FCFLAGS = -g $(hdfflags) -O0 -fbounds-check -fwhole-file -ffpe-trap=invalid,zero,overflow -Wall -Wunused -Wuninitialized -Wsurprising -Wconversion
-endif
+# # make all compiler flags
+# ifeq ($(mode),standard)
+#    FCFLAGS = -g $(hdfflags) -O3 -fopenmp
+# else
+#    FCFLAGS = -g $(hdfflags) -O0 -fbounds-check -fwhole-file -ffpe-trap=invalid,zero,overflow -Wall -Wunused -Wuninitialized -Wsurprising -Wconversion
+# endif
+
+
 
 # Compiler
 FC = gfortran
