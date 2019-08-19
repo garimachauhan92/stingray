@@ -30,7 +30,7 @@ endif
 # Compiler flags on hyades
 #FCFLAGS = -g -O3 -fopenmp -L/pawsey/sles12sp3/devel/sandybridge/gcc/7.2.0/hdf5/1.10.1/lib -I/pawsey/sles12sp3/devel/sandybridge/gcc/7.2.0/hdf5/1.10.1/include -lhdf5_fortran -lhdf5
 FCFLAGS = -g -O3 -fopenmp -I/opt/bldr/local/storage/hdf5/1.10.2/include -L/opt/bldr/local/storage/hdf5/1.10.2/lib -lhdf5_fortran -lhdf5
-=======
+
 # custom flags to load the HDF5 library
 hdfflags = empty
 ifeq ($(system),ems) # private laptop of developer Obreschkow
@@ -129,5 +129,4 @@ clean:
 	rm -f *~ $(PROGRAMS)
 	rm -f fort.*
 
-=======
 	rm -rf *.dSYM
