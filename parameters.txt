@@ -7,26 +7,12 @@
 survey                  alfalfa
 
 # Paths
-<<<<<<< HEAD
-path_output               /mnt/su3ctm/gchauhan/Stingray_Output/micro-SURFS/ALFALFA/
+path_output               /mnt/su3ctm/gchauhan/Stingray_Output/medi-SURFS/Shark-TreeFixed-kappa-0p2/ALFALFA/
+
 #path_output              /scratch/pawsey0119/gchauhan/medi-SURFS/Shark-Lagos18-final/
 
 #path_input               /group/pawsey0119/gchauhan/SHArk_Out/micro-SURFS/Shark-Lagos18-final/
-path_input                /mnt/su3ctm/clagos/SHARK_Out/micro-SURFS/Shark-Lagos18-final/
-=======
-<<<<<<< HEAD
-path_output               /scratch/pawsey0119/gchauhan/micro-SURFS/Shark-Lagos18-final/
-#path_output              /scratch/pawsey0119/gchauhan/medi-SURFS/Shark-Lagos18-final/
-#path_output             /mnt/su3ctm/dobreschkow/Stingray/output/
-path_input               /group/pawsey0119/gchauhan/SHArk_Out/micro-SURFS/Shark-Lagos18-final/
-#path_input              /mnt/su3ctm/clagos/SHARK_Out/medi-SURFS/Shark-Lagos18-final/
-=======
-#path_output             /Users/do/Data/SURFS/L210_N1536/stingray/
-path_output             /mnt/su3ctm/dobreschkow/Stingray/output/
-#path_input              /Users/do/Data/SURFS/L210_N1536/Shark-v1p2/
-path_input              /mnt/su3ctm/clagos/SHARK_Out/medi-SURFS/Shark-v1p2
->>>>>>> upstream/master
->>>>>>> 2b4897cff31022baf706ec6a1cab9598f2bfb99c
+path_input                /mnt/su3ctm/clagos/SHARK_Out/medi-SURFS/Shark-TreeFixed-ReincPSO-kappa0p002/
 
 # Snapshot parameters
 L                       auto           [length_unit] side-length of simulation box
@@ -44,21 +30,12 @@ omega_b                 auto           Space density of baryonic matter relative
 
 # Considered distance range and field-of-view. Additional, more complex positional selection criteria can
 # be coded in the user module function "pos_selection".
-<<<<<<< HEAD
 dc_min                  0              [simulation units] minimal comoving distance
 dc_max                  300            [simulation units] maximal comoving distance
 ra_min                  0              [deg] min right ascension
 ra_max                  360            [deg] max right ascension
 dec_min                 -90            [deg] min declination
 dec_max                 90             [deg] max declination
-=======
-dc_min                  0              [length_unit] minimal comoving distance (>=0)
-dc_max                  1000           [length_unit] maximal comoving distance (>=0)
-ra_min                  0              [deg] min right ascension (from 0 to 360)
-ra_max                  360            [deg] max right ascension (from 0 to 360)
-dec_min                 -90            [deg] min declination (from -90 to 90)
-dec_max                 90             [deg] max declination (from -90 to 90)
->>>>>>> upstream/master
 
 # Mapping of SAM-coordinates on to survey-coordinates
 zaxis_ra                0              [deg] direction of the SAM z-axis in spherical survey coordinates
