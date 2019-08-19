@@ -84,6 +84,8 @@ type type_sam
    real*4      :: mbh            ! [Msun/h] black hole mass
    real*4      :: mbh_acc_hh     ! [Msun/Gyr/h] accretion rate in hot-halo mode
    real*4      :: mbh_acc_sb     ! [Msun/Gyr/h] accretion rate in starburst mode
+   real*4      :: mgas_metals_disk  ! [Msun/h] mass of metals locked up in the disk
+   real*4      :: mgas_metals_bulge ! [Msun/h] mass of metals locked up in the bulge
   
 contains
 
