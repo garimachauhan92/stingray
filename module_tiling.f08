@@ -3,6 +3,7 @@ module module_tiling
    use shared_module_core
    use shared_module_parameters
    use shared_module_maths
+   use shared_module_vectors
    use shared_module_constants
    use module_global
    use module_user_selection

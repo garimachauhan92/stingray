@@ -7,7 +7,6 @@ module module_sky
    use shared_module_maths
    use shared_module_sort
    use module_global
-   use module_interface
    use module_user_routines
    use module_user_selection
    use module_tiling
@@ -51,7 +50,9 @@ subroutine make_sky
    
    ! make snapshot properties
    allocate(snapshot(para%snapshot_min:para%snapshot_max))
-   call make_redshifts
+   do isnapshot = para%snapshot_min,para%snapshot_max
+      snapshot(isnapshot)%redshift = get_redshift(isnapshot)
+   end do
    call make_distance_ranges
    call count_tiles_of_snapshot
    
@@ -355,7 +356,7 @@ subroutine place_subvolume_into_tile(itile,isnapshot,isubvolume,sam,sam_sel,sam_
    logical                                         :: group_preselected
    logical                                         :: last_galaxy_in_group
    logical                                         :: wrapped
-   integer*8                                       :: galaxyid,groupid,prefixid
+   integer*8                                       :: prefixid
    type(type_sky_galaxy),allocatable               :: sky_galaxy(:)
    type(type_sky_group)                            :: sky_group
    type(type_pos)                                  :: pos
@@ -435,9 +436,9 @@ subroutine place_subvolume_into_tile(itile,isnapshot,isubvolume,sam,sam_sel,sam_
             
             ! make group id
             if (base%group_ntot==1) then
-               groupid = -1_8
+               base%groupid = -1_8
             else
-               groupid = prefixid+n_groups+1
+               base%groupid = prefixid+n_groups+1
             end if
             
             ! make group flag
@@ -457,17 +458,18 @@ subroutine place_subvolume_into_tile(itile,isnapshot,isubvolume,sam,sam_sel,sam_
                if (ok(j)) then
                   ok(j) = .false.
                   if (sam_sel(j)) then
-                     galaxyid = prefixid+n_galaxies+1
+                     base%galaxyid = prefixid+n_galaxies+1
                      pos%dc = dc(j)*para%box_side
                      pos%ra = ra(j)/unit%degree
                      pos%dec = dec(j)/unit%degree
                      ok(j) = .true.
                      call selection_function(pos=pos,sam=sam(j),selected=ok(j))
                      if (ok(j)) then
-                        base%pos%ra = ra(j)
-                        base%pos%dec = dec(j)
-                        base%pos%dc = dc(j)
-                        call sky_galaxy(j)%make_from_sam(sam(j),base,groupid,galaxyid)
+                        base%ra = ra(j)
+                        base%dec = dec(j)
+                        base%dc = dc(j)
+                        call make_sky_object(sky_galaxy(j),sam(j),base)
+                        call make_sky_galaxy(sky_galaxy(j),sam(j),base)
                         call selection_function(pos=pos,sam=sam(j),sky=sky_galaxy(j),selected=ok(j))
                         if (ok(j)) then
                            n_galaxies = n_galaxies+1
@@ -515,10 +517,12 @@ subroutine place_subvolume_into_tile(itile,isnapshot,isubvolume,sam,sam_sel,sam_
                   end if
                
                   ! make group
-                  base%pos%dc = dc(jmin)
-                  base%pos%ra = ra(jmin)
-                  base%pos%dec = dec(jmin)
-                  call sky_group%make_from_sam(sam(jmin:i),sky_galaxy(jmin:i),ok(jmin:i),base,groupid,group_nselected)
+                  base%dc = dc(jmin)
+                  base%ra = ra(jmin)
+                  base%dec = dec(jmin)
+                  base%galaxyid = -1
+                  call make_sky_object(sky_group,sam(jmin),base)
+                  call make_sky_group(sky_group,sam(jmin:i),sky_galaxy(jmin:i),ok(jmin:i),base)
                   
                end if
                

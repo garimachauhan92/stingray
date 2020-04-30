@@ -5,27 +5,27 @@ program stingray
    use shared_module_parameters
    use shared_module_cosmology
    use module_global
-   use module_interface
+   use module_parameters
    use module_user_routines
    use module_user_selection
-   use module_parameters
    use module_tiling
    use module_sky
 
    implicit none
    
    ! start user interface
-   call set_version('0.25')
+   call set_version('0.27')
    call handle_arguments(require_task=.false.)
    call start_output
    
    ! read user arguments and parameters
-   call make_parameters
+   call make_parameters_input_path
+   call make_automatic_parameters
+   call make_parameters_from_file
    call require_no_options_left
    
    ! initialise variables
    call initialize_global_variables
-   call get_keywords
    call set_cosmology('stingray',para%h,para%omega_m,para%omega_l)
    call assign_selection_function
    

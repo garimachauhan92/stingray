@@ -5,6 +5,7 @@ module module_conversion
    use shared_module_core
    use shared_module_cosmology
    use shared_module_maths
+   use shared_module_vectors
    use shared_module_constants
    use module_global
    
@@ -12,7 +13,7 @@ module module_conversion
    
 contains
 
-function convert_vector(x,tileindex,ispseudovector) result(y)
+function rotate_vector(x,tileindex,ispseudovector) result(y)
 
    implicit none
    real*4,intent(in)    :: x(3)
@@ -29,7 +30,7 @@ function convert_vector(x,tileindex,ispseudovector) result(y)
    
    y = matmul(rotationmatrix,x)
    
-end function convert_vector
+end function rotate_vector
 
 subroutine make_redshift(x,v,zobs,zcmb,zcos)
 
@@ -93,20 +94,17 @@ subroutine make_inclination_and_pa(x,J,inclination,pa)
       
    else
    
-      eLOS = x/normx
-      eJ = J/normJ
+      eLOS = unitvector(x)
+      eJ = unitvector(J)
    
-      inclination = acos(min(1.0,max(-1.0,sum(eLOS*eJ))))
+      inclination = acos(min(1.0,max(-1.0,eLOS.dot.eJ)))
       if (inclination>pi/2.0) inclination = pi-inclination
    
-      eMajor = cross_product(eLOS,eJ)
-      eMajor = eMajor/norm(eMajor)
+      eMajor = unitvector(eLOS.cross.eJ)
+      eNorth = unitvector((/0,0,1/)-eLOS(3)*eLOS)
+      eEast = eNorth.cross.eLOS
    
-      eNorth = (/0,0,1/)-eLOS(3)*eLOS
-      eNorth = eNorth/norm(eNorth)
-      eEast = cross_product(eNorth,eLOS)
-   
-      pa = atan2(sum(eMajor*eEast),sum(eMajor*eNorth))
+      pa = atan2(eMajor.dot.eEast,eMajor.dot.eNorth)
       if (pa<0) pa = 2*pi+pa
       
    end if

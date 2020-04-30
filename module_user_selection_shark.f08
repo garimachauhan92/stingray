@@ -17,14 +17,14 @@
 module module_user_selection
 
 ! **********************************************************************************************************************************
-! INTERFACE (DO NOT EDIT)
+! MODULE INTERFACE (DO NOT EDIT)
 ! **********************************************************************************************************************************
 
 use shared_module_core
 use shared_module_maths
 use shared_module_cosmology
 use module_global
-use module_interface
+use module_parameters
 use module_conversion
 use module_user_routines
 
@@ -64,15 +64,15 @@ end subroutine
 subroutine assign_selection_function
 
    select case (trim(para%survey))
-   case('all');                  selection_function => selection_all
-   case('example');              selection_function => selection_example
-   case('gama');                 selection_function => selection_gama
-   case('devils');               selection_function => selection_devils
-   case('waves-g23');            selection_function => selection_waves_g23
-   case('deep-optical');         selection_function => selection_deep_optical
-   case('deep-optical_narrow');  selection_function => selection_deep_optical_narrow
-   case('wallaby-micro');        selection_function => selection_wallaby_micro
-   case('wallaby-medi');         selection_function => selection_wallaby_medi
+      case('all');                  selection_function => selection_all
+      case('example');              selection_function => selection_example
+      case('gama');                 selection_function => selection_gama
+      case('devils');               selection_function => selection_devils
+      case('waves-g23');            selection_function => selection_waves_g23
+      case('deep-optical');         selection_function => selection_deep_optical
+      case('deep-optical_narrow');  selection_function => selection_deep_optical_narrow
+      case('wallaby-micro');        selection_function => selection_wallaby_micro
+      case('wallaby-medi');         selection_function => selection_wallaby_medi
    case default
       call error('unknown survey name: ',trim(para%survey))
    end select   

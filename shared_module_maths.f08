@@ -6,27 +6,306 @@
 module shared_module_maths
 
    private
-
+   
+   ! operators
+   public   :: operator(.safedivide.)
+   
    ! random numbers
    public   :: set_seed
    public   :: get_normal_random_number
-
-   ! vectors (note fortran has an intrinsic function dot_product)
-   public   :: norm
-   public   :: cross_product
-
-   ! matrices
-   public   :: rotation_matrix
-   public   :: determinant
 
    ! geometry
    public   :: sph2car
    public   :: car2sph
 
+   ! linear algebra (without LAPACK)
+   public   :: rotation_matrix
+   public   :: determinant
+
    ! spectra analysis
    public   :: spherical_harmonic
+   
+   interface operator(.safedivide.)
+      procedure savedivide_r4_by_r4
+      procedure savedivide_r4_by_r8
+      procedure savedivide_r4_by_i4
+      procedure savedivide_r4_by_i8
+      procedure savedivide_r8_by_r4
+      procedure savedivide_r8_by_r8
+      procedure savedivide_r8_by_i4
+      procedure savedivide_r8_by_i8
+      procedure savedivide_i4_by_r4
+      procedure savedivide_i4_by_r8
+      procedure savedivide_i4_by_i4
+      procedure savedivide_i4_by_i8
+      procedure savedivide_i8_by_r4
+      procedure savedivide_i8_by_r8
+      procedure savedivide_i8_by_i4
+      procedure savedivide_i8_by_i8
+   end interface operator(.safedivide.)
 
 contains
+   
+! operators ************************************************************************************************************************
+
+function savedivide_r4_by_r4(a,b) result(q)
+   implicit none
+   real*4,intent(in) :: a
+   real*4,intent(in) :: b
+   real*4 :: q
+   if (exponent(a)-exponent(b)>=maxexponent(q) .or. b==0) then
+      if (a==0) then
+         q = 0
+      else
+         q = huge(q)*sign(1.0,a)*sign(1.0,b)
+      end if
+   else 
+      q = a/b
+   endif
+end function savedivide_r4_by_r4
+
+function savedivide_r4_by_r8(a,b) result(q)
+   implicit none
+   real*4,intent(in) :: a
+   real*8,intent(in) :: b
+   real*8 :: q
+   if (exponent(a)-exponent(b)>=maxexponent(q) .or. b==0) then
+      if (a==0) then
+         q = 0
+      else
+         q = huge(q)*sign(1.0,a)*sign(1.0_8,b)
+      end if
+   else 
+      q = a/b
+   endif
+end function savedivide_r4_by_r8
+
+function savedivide_r4_by_i4(a,b) result(q)
+   implicit none
+   real*4,intent(in) :: a
+   integer*4,intent(in) :: b
+   real*4 :: q
+   if (exponent(a)-exponent(real(b,4))>=maxexponent(q) .or. b==0) then
+      if (a==0) then
+         q = 0
+      else
+         q = huge(q)*sign(1.0,a)*sign(1,b)
+      end if
+   else 
+      q = a/b
+   endif
+end function savedivide_r4_by_i4
+
+function savedivide_r4_by_i8(a,b) result(q)
+   implicit none
+   real*4,intent(in) :: a
+   integer*8,intent(in) :: b
+   real*4 :: q
+   if (exponent(a)-exponent(real(b,4))>=maxexponent(q) .or. b==0) then
+      if (a==0) then
+         q = 0
+      else
+         q = huge(q)*sign(1.0,a)*real(sign(1_8,b),4)
+      end if
+   else 
+      q = a/real(b,4)
+   endif
+end function savedivide_r4_by_i8
+
+function savedivide_r8_by_r4(a,b) result(q)
+   implicit none
+   real*8,intent(in) :: a
+   real*4,intent(in) :: b
+   real*8 :: q
+   if (exponent(a)-exponent(b)>=maxexponent(q) .or. b==0) then
+      if (a==0) then
+         q = 0
+      else
+         q = huge(q)*sign(1.0_8,a)*sign(1.0,b)
+      end if
+   else 
+      q = a/b
+   endif
+end function savedivide_r8_by_r4
+
+function savedivide_r8_by_r8(a,b) result(q)
+   implicit none
+   real*8,intent(in) :: a
+   real*8,intent(in) :: b
+   real*8 :: q
+   if (exponent(a)-exponent(b)>=maxexponent(q) .or. b==0) then
+      if (a==0) then
+         q = 0
+      else
+         q = huge(q)*sign(1.0_8,a)*sign(1.0_8,b)
+      end if
+   else 
+      q = a/b
+   endif
+end function savedivide_r8_by_r8
+
+function savedivide_r8_by_i4(a,b) result(q)
+   implicit none
+   real*8,intent(in) :: a
+   integer*4,intent(in) :: b
+   real*8 :: q
+   if (exponent(a)-exponent(real(b,4))>=maxexponent(q) .or. b==0) then
+      if (a==0) then
+         q = 0
+      else
+         q = huge(q)*sign(1.0_8,a)*sign(1,b)
+      end if
+   else 
+      q = a/b
+   endif
+end function savedivide_r8_by_i4
+
+function savedivide_r8_by_i8(a,b) result(q)
+   implicit none
+   real*8,intent(in) :: a
+   integer*8,intent(in) :: b
+   real*8 :: q
+   if (exponent(a)-exponent(real(b,4))>=maxexponent(q) .or. b==0) then
+      if (a==0) then
+         q = 0
+      else
+         q = huge(q)*sign(1.0_8,a)*sign(1_8,b)
+      end if
+   else 
+      q = a/b
+   endif
+end function savedivide_r8_by_i8
+
+function savedivide_i4_by_r4(a,b) result(q)
+   implicit none
+   integer*4,intent(in) :: a
+   real*4,intent(in) :: b
+   real*4 :: q
+   if (exponent(real(a,4))-exponent(b)>=maxexponent(q) .or. b==0) then
+      if (a==0) then
+         q = 0
+      else
+         q = huge(q)*sign(1,a)*sign(1.0,b)
+      end if
+   else 
+      q = a/b
+   endif
+end function savedivide_i4_by_r4
+
+function savedivide_i4_by_r8(a,b) result(q)
+   implicit none
+   integer*4,intent(in) :: a
+   real*8,intent(in) :: b
+   real*8 :: q
+   if (exponent(real(a,4))-exponent(b)>=maxexponent(q) .or. b==0) then
+      if (a==0) then
+         q = 0
+      else
+         q = huge(q)*sign(1,a)*sign(1.0_8,b)
+      end if
+   else 
+      q = a/b
+   endif
+end function savedivide_i4_by_r8
+
+function savedivide_i4_by_i4(a,b) result(q)
+   implicit none
+   integer*4,intent(in) :: a
+   integer*4,intent(in) :: b
+   real*4 :: q
+   if (exponent(real(a,4))-exponent(real(b,4))>=maxexponent(q) .or. b==0) then
+      if (a==0) then
+         q = 0
+      else
+         q = huge(q)*sign(1,a)*sign(1,b)
+      end if
+   else 
+      q = real(a,4)/b
+   endif
+end function savedivide_i4_by_i4
+
+function savedivide_i4_by_i8(a,b) result(q)
+   implicit none
+   integer*4,intent(in) :: a
+   integer*8,intent(in) :: b
+   real*4 :: q
+   if (exponent(real(a,4))-exponent(real(b,4))>=maxexponent(q) .or. b==0) then
+      if (a==0) then
+         q = 0
+      else
+         q = huge(q)*real(sign(1,a),4)*real(sign(1_8,b),4)
+      end if
+   else 
+      q = real(a,4)/real(b,4)
+   endif
+end function savedivide_i4_by_i8
+
+function savedivide_i8_by_r4(a,b) result(q)
+   implicit none
+   integer*8,intent(in) :: a
+   real*4,intent(in) :: b
+   real*4 :: q
+   if (exponent(real(a,4))-exponent(b)>=maxexponent(q) .or. b==0) then
+      if (a==0) then
+         q = 0
+      else
+         q = huge(q)*real(sign(1_8,a),4)*sign(1.0,b)
+      end if
+   else 
+      q = real(a,4)/b
+   endif
+end function savedivide_i8_by_r4
+
+function savedivide_i8_by_r8(a,b) result(q)
+   implicit none
+   integer*8,intent(in) :: a
+   real*8,intent(in) :: b
+   real*8 :: q
+   if (exponent(real(a,4))-exponent(b)>=maxexponent(q) .or. b==0) then
+      if (a==0) then
+         q = 0
+      else
+         q = huge(q)*sign(1_8,a)*sign(1.0_8,b)
+      end if
+   else 
+      q = a/b
+   endif
+end function savedivide_i8_by_r8
+
+function savedivide_i8_by_i4(a,b) result(q)
+   implicit none
+   integer*8,intent(in) :: a
+   integer*4,intent(in) :: b
+   real*4 :: q
+   if (exponent(real(a,4))-exponent(real(b,4))>=maxexponent(q) .or. b==0) then
+      if (a==0) then
+         q = 0
+      else
+         q = huge(q)*real(sign(1_8,a),4)*real(sign(1,b),4)
+      end if
+   else 
+      q = real(a,4)/b
+   endif
+end function savedivide_i8_by_i4
+
+function savedivide_i8_by_i8(a,b) result(q)
+   implicit none
+   integer*8,intent(in) :: a
+   integer*8,intent(in) :: b
+   real*4 :: q
+   if (exponent(real(a,4))-exponent(real(b,4))>=maxexponent(q) .or. b==0) then
+      if (a==0) then
+         q = 0
+      else
+         q = huge(q)*real(sign(1_8,a),4)*real(sign(1_8,b),4)
+      end if
+   else 
+      q = real(a,4)/real(b,4)
+   endif
+end function savedivide_i8_by_i8
+
+   
+! random numbers *******************************************************************************************************************
 
 subroutine set_seed(seed)
 
@@ -59,6 +338,9 @@ real*4 function get_normal_random_number(mu,sigma)
    get_normal_random_number = mu+z*sigma
    
 end function get_normal_random_number
+
+
+! geometry *************************************************************************************************************************
 
 subroutine sph2car(radius,longitude,lattitude,x,astro)
 
@@ -108,6 +390,9 @@ subroutine car2sph(x,radius,longitude,lattitude,astro)
    
 end subroutine car2sph
 
+
+! linear algebra (without LAPACK) **************************************************************************************************
+
 recursive function determinant(mat,n) result(accum)
     integer :: n
     real    :: mat(n, n)
@@ -127,48 +412,43 @@ recursive function determinant(mat,n) result(accum)
     endif
 end function determinant
 
-function cross_product(a,b) result (c)
-   
-   implicit none
-   real*4,intent(in) :: a(3),b(3)
-   real*4            :: c(3)
-   c(1) = a(2)*b(3)-a(3)*b(2)
-   c(2) = a(3)*b(1)-a(1)*b(3)
-   c(3) = a(1)*b(2)-a(2)*b(1)
-   
-end function cross_product
-
-function norm(x) result (n)
-
-   implicit none
-   real*4,intent(in) :: x(:)
-   real*4            :: n
-   n = sqrt(sum(x**2))
-   
-end function norm
-
 function rotation_matrix(axis,angle) result(R)
 
    implicit none
-   real*4,intent(in) :: axis(3)
-   real*4,intent(in) :: angle    ! [rad]
-   real*4            :: R(3,3)
-   real*4            :: c,s
+   real*4,intent(in)          :: axis(3)
+   real*4,intent(in),optional :: angle    ! [rad]
+   real*4                     :: R(3,3)
+   real*4                     :: c,s,d,e(3),axis_norm,theta
    
-   c = cos(angle)
-   s = sin(angle)
+   ! make rotation axis
+   axis_norm = sqrt(sum(axis**2))
+   e = axis/axis_norm
+   
+   ! make rotation angle
+   if (present(angle)) then
+      theta = angle
+   else
+      theta = axis_norm
+   end if
+   c = cos(theta)
+   s = sin(theta)
+   d = 1-c
 
-   R(1,1) = c+axis(1)**2*(1-c)
-   R(1,2) = axis(1)*axis(2)*(1-c)-axis(3)*s
-   R(1,3) = axis(1)*axis(3)*(1-c)+axis(2)*s
-   R(2,1) = axis(2)*axis(1)*(1-c)+axis(3)*s
-   R(2,2) = c+axis(2)**2*(1-c)
-   R(2,3) = axis(2)*axis(3)*(1-c)-axis(1)*s
-   R(3,1) = axis(3)*axis(1)*(1-c)-axis(2)*s
-   R(3,2) = axis(3)*axis(2)*(1-c)+axis(1)*s
-   R(3,3) = c+axis(3)**2*(1-c)
+   ! make rotation matrix
+   R(1,1) = c+e(1)**2*d
+   R(1,2) = e(1)*e(2)*d-e(3)*s
+   R(1,3) = e(1)*e(3)*d+e(2)*s
+   R(2,1) = e(2)*e(1)*d+e(3)*s
+   R(2,2) = c+e(2)**2*d
+   R(2,3) = e(2)*e(3)*d-e(1)*s
+   R(3,1) = e(3)*e(1)*d-e(2)*s
+   R(3,2) = e(3)*e(2)*d+e(1)*s
+   R(3,3) = c+e(3)**2*d
    
 end function rotation_matrix
+
+
+! spectral analysis ****************************************************************************************************************
 
 function spherical_harmonic(l,m,x) result(Y)
 

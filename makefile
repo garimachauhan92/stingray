@@ -32,7 +32,9 @@ ifeq ($(system),ism49) # private backup laptop of developer Obreschkow
    hdfflags = -I/usr/local/lib/hdf5/include -L/usr/local/lib/hdf5/lib -lhdf5_fortran -lhdf5
 endif
 ifeq ($(system),hyades) # in-house cluster at ICRAR/UWA
-   hdfflags = -I$BLDR_HDF5_INCLUDE_PATH -L$BLDR_HDF5_LIB_PATH -lhdf5_fortran -lhdf5
+   hdfflags = -I/opt/bldr/local/storage/hdf5/1.10.2/include -L/opt/bldr/local/storage/hdf5/1.10.2/lib -lhdf5_fortran -lhdf5
+   
+   #hdfflags = -I$BLDR_HDF5_INCLUDE_PATH -L$BLDR_HDF5_LIB_PATH -lhdf5_fortran -lhdf5
 endif
 ifeq ($(hdfflags),empty)
    $(info ERROR unknown system: '${system}')
@@ -67,15 +69,15 @@ stingray.o:    shared_module_core.o \
                shared_module_hdf5.o \
                shared_module_cosmology.o \
                shared_module_maths.o \
+               shared_module_vectors.o \
                shared_module_constants.o \
                shared_module_sort.o \
                module_global.o \
                module_conversion.o \
-               module_interface.o \
+               module_parameters.o \
                module_emission_lines.o \
                module_user_routines_$(sam).o \
                module_user_selection_$(sam).o \
-               module_parameters.o \
                module_tiling.o \
                module_sky.o
                
@@ -85,15 +87,15 @@ stingray: 	   shared_module_core.o \
                shared_module_hdf5.o \
                shared_module_cosmology.o \
                shared_module_maths.o \
+               shared_module_vectors.o \
                shared_module_constants.o \
                shared_module_sort.o \
                module_global.o \
                module_conversion.o \
-               module_interface.o \
+               module_parameters.o \
                module_emission_lines.o \
                module_user_routines_$(sam).o \
                module_user_selection_$(sam).o \
-               module_parameters.o \
                module_tiling.o \
                module_sky.o
 

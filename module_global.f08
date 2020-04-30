@@ -2,6 +2,8 @@
 
 module module_global
 
+   use shared_module_core
+
    public
 
    ! File names
@@ -50,8 +52,8 @@ module module_global
       character(len=255)   :: filename_sky = c1
    
       ! simulation box
-      real*4               :: box_side = r4 ! [length unit of simulation] box side length
-      real*4               :: length_unit = r4 ! [m] simulation length unit expressed in SI unit
+      real*4               :: box_side = r4     ! [length unit of simulation] box side length
+      real*4               :: length_unit = r4  ! [m] simulation length unit expressed in SI unit
       integer*4            :: snapshot_min = i4
       integer*4            :: snapshot_max = i4
       integer*4            :: subvolume_min = i4
@@ -64,19 +66,19 @@ module module_global
       real*4               :: omega_b = r4
       
       ! distance range
-      real*4               :: dc_min = r4  ! [length unit of simulation]
-      real*4               :: dc_max = r4  ! [length unit of simulation]
+      real*4               :: dc_min = r4 ! [length unit of simulation]
+      real*4               :: dc_max = r4 ! [length unit of simulation]
       
       ! fov
-      real*4               :: ra_min = r4  ! [rad]
-      real*4               :: ra_max = r4  ! [rad]
-      real*4               :: dec_min = r4 ! [rad]
-      real*4               :: dec_max = r4 ! [rad]
+      real*4               :: ra_min = r4    ! [rad]
+      real*4               :: ra_max = r4    ! [rad]
+      real*4               :: dec_min = r4   ! [rad]
+      real*4               :: dec_max = r4   ! [rad]
       
       ! mapping of SAM coordinates onto survey coordinates
-      real*4               :: zaxis_ra = r4   ! [rad]
-      real*4               :: zaxis_dec = r4   ! [rad]
-      real*4               :: xy_angle = r4    ! [rad]
+      real*4               :: zaxis_ra = r4  ! [rad]
+      real*4               :: zaxis_dec = r4 ! [rad]
+      real*4               :: xy_angle = r4  ! [rad]
 
       ! sky parameters
       integer*4            :: seed = i4  ! seed of random number generator (integer >=1)
@@ -85,9 +87,9 @@ module module_global
       integer*4            :: invert = i4
       
       ! observer velocity relative to CMB
-      real*4               :: velocity_ra = r4    ! [rad]
-      real*4               :: velocity_dec = r4   ! [rad]
-      real*4               :: velocity_norm = r4  ! [km/s] peculiar velocity of observer with respect to Hubble flow
+      real*4               :: velocity_ra = r4     ! [rad]
+      real*4               :: velocity_dec = r4    ! [rad]
+      real*4               :: velocity_norm = r4   ! [km/s] peculiar velocity of observer with respect to Hubble flow
       
       ! advanced options
       real*4               :: search_angle = r4         ! [rad] minimal angular separation of points on faces
@@ -108,30 +110,31 @@ module module_global
       
    end type type_para
    
-   type type_pos
+   type type_pos ! spherical coordinates
    
-      real*4   :: dc    ! [box lengths] comoving distance from observer
+      real*4   :: dc    ! [simulation units/box lengths] comoving distance from observer
       real*4   :: ra    ! [rad/deg] right ascension
       real*4   :: dec   ! [rad/deg] declination
    
    end type type_pos
    
-   type type_range
-   
-      real*4   :: dc(2)    ! [box lengths] range of comoving distance from observer
-      real*4   :: ra(2)    ! [rad/deg] range of right ascension
-      real*4   :: dec(2)   ! [rad/deg] range of declination
-      
-   end type type_range
-   
-   type type_base
+   type,extends(type_pos) :: type_base
 
-      type(type_pos) :: pos            ! position in sky coordinates
-      integer*4      :: tile           ! unique identifier of box in mock sky
-      integer*4      :: group_ntot     ! total number of members in group
-      integer*4      :: group_flag     ! group flag (0 if group unclipped, >0 if clipped by survey edge (+1), snapshot limit (+2), box limit (+4))
+      integer*4   :: tile           ! unique identifier of tile in mock sky
+      integer*8   :: galaxyid       ! unique galaxy id in mock sky (-1 for groups)
+      integer*8   :: groupid        ! unique group id in the mock sky (-1 for isolated galaxies)
+      integer*4   :: group_ntot     ! total number of members in group
+      integer*4   :: group_flag     ! group flag (0 if group unclipped, >0 if clipped by survey edge (+1), snapshot limit (+2), box limit (+4))
       
    end type type_base
+   
+   type type_range
+   
+      real*4   :: dc(2)    ! [simulation units/box lengths] range of comoving distance from observer
+      real*4   :: ra(2)    ! [deg/rad] range of right ascension
+      real*4   :: dec(2)   ! [deg/rad] range of declination
+      
+   end type type_range
 
    type type_tile
    
@@ -190,5 +193,27 @@ contains
       end do
       
    end subroutine initialize_global_variables
+   
+   integer*4 function selection_type(pos,sam,sky,range,selected) result(sel)
+
+      implicit none
+      class(*),optional :: pos,sam,sky,range,selected
+      integer*4         :: q
+   
+      q = log2int(present(pos))+2*log2int(present(sam))+4*log2int(present(sky))+ &
+          & 8*log2int(present(range))+16*log2int(present(selected))
+   
+      select case(q)
+      case(0+0+0+8+00); sel = return_position_range
+      case(1+0+0+0+16); sel = select_by_pos
+      case(0+2+0+0+16); sel = select_by_sam
+      case(1+2+0+0+16); sel = select_by_pos_and_sam
+      case(1+2+4+0+16); sel = select_by_all
+      case default
+         write(*,*) q,present(selected)
+         call deverror('unknown selection type')
+      end select
+
+   end function selection_type
 
 end module module_global

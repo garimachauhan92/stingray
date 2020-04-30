@@ -26,6 +26,7 @@ v0.23 23/04/2020: Implementation of parameter sets; new parameter "options"; add
 v0.24 23/04/2020: Many additional galaxy properties, including all those added to stingray by Claudia Lagos
 v0.25 23/04/2020: All in Fortran 2008 standard
 v0.26 24/04/2020: Default parameterset via "parameterset*"
+v0.27 30/04/2020: Added module "shared_module_vectors", removed module "module_interface", minor fixes, comments
 
 Developed by Danail Obreschkow (danail.obreschkow@icrar.org)
 

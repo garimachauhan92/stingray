@@ -4,24 +4,27 @@ module module_parameters
    use shared_module_arguments
    use shared_module_parameters
    use shared_module_maths
+   use shared_module_vectors
    use shared_module_constants
    use module_global
-   use module_user_routines
    
    private
-   public   :: make_parameters
+   
+   public   :: make_parameters_input_path
+   public   :: make_parameters_from_file
+   public   :: keyword
+   
+   integer*4,parameter           :: n_keywords_max = 20
+   integer*4,protected           :: n_keywords
+   character(len=255),protected  :: keyword_name(n_keywords_max)
    
 contains
 
-! Note: the routine make_automatic_parameters needs to be specified in the user module
-
-subroutine make_parameters
+subroutine make_parameters_input_path
 
    implicit none
    character(255)    :: parameter_filename
    character(255)    :: parameter_set
-   type(type_para)   :: auto,empty
-
    
    call tic('MAKE PARAMETERS')
    
@@ -40,12 +43,18 @@ subroutine make_parameters
    call get_parameter_value(para%path_input,'path_input')
    para%path_input = dir(para%path_input,ispath=.true.)
    call check_file(para%path_input,permission='r')
-   
-   ! make automatic parameters, as specified in the module "module_user_routines_..."
-   empty = para
-   call make_automatic_parameters
+
+end subroutine make_parameters_input_path
+
+subroutine make_parameters_from_file
+
+   implicit none
+   type(type_para)   :: empty,auto
+
+   ! store automatically made parameters and reset parameters to default values, specified in type_para
    auto = para
    para = empty
+   para%path_input = auto%path_input
    
    ! interpret parameters of parameter file
    call get_parameter_value(para%survey,'survey',auto=auto%survey,min=1)
@@ -96,10 +105,11 @@ subroutine make_parameters
    
    ! compute derived parameters, such as the sky rotation matrix
    call make_derived_parameters
+   call get_keywords
    
    call toc
 
-end subroutine make_parameters
+end subroutine make_parameters_from_file
 
 subroutine convert_parameter_units
 
@@ -125,28 +135,70 @@ contains
    subroutine make_sky_rotation
 
       implicit none
-      real*4            :: rotationvector(3)
+      real*4            :: rotationaxis(3)
       real*4            :: angle
-      real*4            :: nrot
       real*4,parameter  :: ezsam(3) = (/0.0,0.0,1.0/) ! unit vector of the SAM z-axis inSAM coordinates
       real*4            :: ezsky(3) ! unit vector of the SAM z-axis in Survey coordinates
       
       ! rotate SAM coordinates in the SAM xy-plane
       para%sky_rotation = rotation_matrix(ezsam,para%xy_angle)
       
-      ! rotate SAM coordinates onto Survey coordinates
+      ! rotate SAM coordinates onto survey coordinates
       call sph2car(1.0,para%zaxis_ra,para%zaxis_dec,ezsky,astro=.true.)
-      rotationvector = cross_product(ezsam,ezsky)
-      nrot = norm(rotationvector)
+      rotationaxis = ezsam.cross.ezsky
       
-      if ((nrot>epsilon(nrot)).and.(sum(ezsam*ezsky)<1.0)) then
-         rotationvector = rotationvector/nrot
-         angle = acos(sum(ezsam*ezsky))
-         para%sky_rotation = matmul(rotation_matrix(rotationvector,angle),para%sky_rotation)
+      if ((norm(rotationaxis)>epsilon(1.0)).and.((ezsam.dot.ezsky)<1.0)) then
+         angle = acos(ezsam.dot.ezsky)
+         para%sky_rotation = matmul(rotation_matrix(rotationaxis,angle),para%sky_rotation)
       end if
    
    end subroutine make_sky_rotation
 
 end subroutine make_derived_parameters
+
+subroutine get_keywords
+   
+   implicit none
+   integer*4   :: i,imin,imax,n
+   
+   n_keywords = 0
+   
+   if (.not.isempty(para%options)) then
+   
+      n = len(trim(para%options))
+      imin = 1
+      do i = 1,n
+         if ((para%options(i:i)==',').or.(i==n)) then
+            if (para%options(i:i)==',') then
+               imax = i-1
+            else
+               imax = i
+            end if
+            if (imax<imin) call error('cannot interpret parameter "options"')
+            n_keywords = n_keywords+1
+            keyword_name(n_keywords) = para%options(imin:imax)
+            imin = imax+2
+         end if
+      end do
+      
+   end if
+   
+end subroutine get_keywords
+
+logical function keyword(string)
+
+   implicit none
+   character(*),intent(in) :: string
+   integer*4               :: i
+   
+   keyword = .false.
+   do i = 1,n_keywords
+      if (trim(keyword_name(i))==trim(string)) then
+         keyword = .true.
+         exit
+      end if
+   end do
+   
+end function keyword
 
 end module module_parameters
