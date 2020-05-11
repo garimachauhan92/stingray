@@ -5,18 +5,31 @@ module module_sky
    use shared_module_parameters
    use shared_module_cosmology
    use shared_module_maths
+   use shared_module_vectors
+   use shared_module_hdf5
    use shared_module_sort
    use module_global
+   use module_parameters
    use module_user_routines
+   use module_selection_tools
    use module_user_selection
    use module_tiling
    
    public   :: make_sky             ! positions galaxies into mock sky and produces their properties
-   public   :: write_sky_to_hdf5    ! call user routine make_hdf5() to save mock sky in HDF5 format
+   public   :: write_sky_to_hdf5    ! call user routine write_hdf5() to save mock sky in HDF5 format
    
    private
    
    integer*4,parameter :: fid = 1 ! default file unit used in this module to write mock sky data
+   
+   type type_skystats
+   
+      integer*4   :: n_galaxies = 0    ! number of galaxies in mock sky (or some part thereof)
+      integer*4   :: n_distinct = 0    ! number of distinct SAM galaxies in mock sky (or some part thereof)
+      integer*4   :: n_replica_max = 0 ! maximum number of replications of the same SAM galaxy
+      integer*4   :: n_groups = 0      ! number of groups
+   
+   end type type_skystats
    
 contains
 
@@ -75,18 +88,26 @@ subroutine make_sky
    do isubvolume = para%subvolume_min,para%subvolume_max
       filename = filename_sky_galaxies(isubvolume)
       open(fid,file=trim(filename),action='write',form='unformatted',status='replace',access='stream')
-      write(fid) 0_4,0_4,0_4 ! place holder for number of galaxies and replication values
+      write(fid) 0_4,0_4,0_4,0_4,0_4,0_4 ! place holder for number of galaxies and replication values
       close(fid)
-      if (para%make_groups==1) then
+      if (para%make_groups) then
          filename = filename_sky_groups(isubvolume)
          open(fid,file=trim(filename),action='write',form='unformatted',status='replace',access='stream')
-         write(fid) 0_4 ! place holder for number of groups
+         write(fid) 0_4,0_4 ! place holder for number of groups
          close(fid)
       end if
    end do
    
    ! fill galaxies with intrinsic properties into sky
    allocate(substats(para%subvolume_min:para%subvolume_max))
+   substats%n_galaxies = 0
+   substats%n_groups = 0
+   substats%n_distinct = 0
+   substats%n_replica_max = 0
+   totstats%n_galaxies = 0
+   totstats%n_groups = 0
+   totstats%n_distinct = 0
+   totstats%n_replica_max = 0
    
    fmt = '(A,A,I0.'//val2str(ceiling(log10(para%snapshot_max+1.0)))//',A,I0.'//val2str(ceiling(log10(para%subvolume_max+1.0)))// &
        & ',A,I0.'//val2str(ceiling(log10(size(tile)+1.0)))//',A,I0,A,I0,A)'
@@ -143,7 +164,7 @@ subroutine make_sky
                open(fid,file=trim(filename),action='write',status='old',position='append',form='unformatted',access='stream')
                write(fid) sky_galaxy
                close(fid)
-               if (para%make_groups==1) then
+               if (para%make_groups) then
                   filename = filename_sky_groups(isubvolume)
                   open(fid,file=trim(filename),action='write',status='old',position='append',form='unformatted',access='stream')
                   write(fid) sky_group
@@ -154,10 +175,13 @@ subroutine make_sky
             end if
          end do
          !$OMP END DO
-         !$OMP END PARALLEL  
-               
+         !$OMP END PARALLEL
+         
+         !$OMP CRITICAL 
          substats(isubvolume)%n_distinct = substats(isubvolume)%n_distinct+count(sam_replica>0)
          substats(isubvolume)%n_replica_max = max(substats(isubvolume)%n_replica_max,maxval(sam_replica))
+         !$OMP END CRITICAL
+         
          deallocate(sam_replica)
          
       end if
@@ -165,17 +189,21 @@ subroutine make_sky
    end do ! task
    !$OMP END DO
    !$OMP END PARALLEL
+   
+   totstats%n_distinct = sum(substats%n_distinct)
+   totstats%n_replica_max = maxval(substats%n_replica_max)
       
    ! finalize binary files
    do isubvolume = para%subvolume_min,para%subvolume_max
       filename = filename_sky_galaxies(isubvolume)
       open(fid,file=trim(filename),action='write',form='unformatted',status='old',access='stream')
-      write(fid,pos=1) substats(isubvolume)%n_galaxies,substats(isubvolume)%n_distinct,substats(isubvolume)%n_replica_max
+      write(fid,pos=1) totstats%n_galaxies,totstats%n_distinct,totstats%n_replica_max, &
+                       & substats(isubvolume)%n_galaxies,substats(isubvolume)%n_distinct,substats(isubvolume)%n_replica_max
       close(fid)
-      if (para%make_groups==1) then
+      if (para%make_groups) then
          filename = filename_sky_groups(isubvolume)
          open(fid,file=trim(filename),action='write',form='unformatted',status='old',access='stream')
-         write(fid) substats(isubvolume)%n_groups
+         write(fid,pos=1) totstats%n_groups,substats(isubvolume)%n_groups
          close(fid)
       end if
    end do
@@ -187,7 +215,7 @@ subroutine make_sky
    
    ! user output
    call out('Number of galaxies in mock sky: ',totstats%n_galaxies)
-   if (para%make_groups==1) call out('Number of groups in mock sky: ',totstats%n_groups)
+   if (para%make_groups) call out('Number of groups in mock sky: ',totstats%n_groups)
    call toc
    
 end subroutine make_sky
@@ -212,22 +240,6 @@ function filename_sky_groups(isubvolume) result(fn)
 
 end function filename_sky_groups
 
-subroutine convert_position_sam_to_sky(position,itile,dc,ra,dec,x,xbox)
-
-   implicit none
-   real*4,intent(in)    :: position(3) ! [box side-length] position in box
-   integer*4,intent(in) :: itile
-   real*4,intent(out)   :: dc,ra,dec   ! [box side-length,rad,rad] position on sky
-   real*4,intent(out)   :: x(3)        ! [box side-length] position in box after symmetry operations
-   real*4,intent(out)   :: xbox(3)     ! [box side-length] position in box after symmetry operations, before projection
-   
-   xbox = modulo(matmul(rot(:,:,tile(itile)%rotation),position)+tile(itile)%translation,1.0) ! apply symmetries
-   x = xbox+tile(itile)%ix-0.5 ! translate coordinates to tile position
-   x = matmul(para%sky_rotation,x) ! convert SAM-coordinates to Sky-coordinates
-   call car2sph(x,dc,ra,dec,astro=.true.)
-   
-end subroutine convert_position_sam_to_sky
-
 subroutine preprocess_snapshot(sam,sam_sel)
 
    ! 1) determine for each galaxy, if it has been selected according to its selection_function(sam)
@@ -250,7 +262,7 @@ subroutine preprocess_snapshot(sam,sam_sel)
    
    n = size(sam)
    
-   if (para%make_groups==1) then
+   if (para%make_groups) then
    
       ! determine if the objects pass the SAM selection
       if (allocated(sam_sel)) deallocate(sam_sel)
@@ -301,7 +313,7 @@ subroutine preprocess_snapshot(sam,sam_sel)
          
       end do
       
-      if (i.ne.n+1) call error('something wrong with group indexing.')
+      if (i/=n+1) call error('something wrong with group indexing.')
       
       ! apply reordering and selection to arrays sam(:) and sam_sel(:)
       sam = sam(index(1:n_keep))
@@ -338,233 +350,251 @@ subroutine place_subvolume_into_tile(itile,isnapshot,isubvolume,sam,sam_sel,sam_
    integer*4,intent(in)                            :: itile
    integer*4,intent(in)                            :: isnapshot
    integer*4,intent(in)                            :: isubvolume
+   integer*4                                       :: ishell
    type(type_sam),allocatable,intent(in)           :: sam(:)
    logical,allocatable,intent(in)                  :: sam_sel(:)
    integer*4,allocatable,intent(inout)             :: sam_replica(:)
    type(type_sky_galaxy),allocatable,intent(out)   :: sky_galaxy_list(:)
    type(type_sky_group),allocatable,intent(out)    :: sky_group_list(:)
-   integer*8                                       :: n_galaxies,n_galaxies_saved
-   integer*8                                       :: n_groups,n_groups_saved
+   integer*8                                       :: n_galaxies
+   integer*8                                       :: n_groups
    type(type_base)                                 :: base
-   integer*4                                       :: i,j,n,jmin,k,d,group_nselected
-   real*4                                          :: xbox(3)
-   real*4                                          :: xmin(3),xmax(3),dx(3)
-   integer*4                                       :: n_in_snapshot
-   integer*4                                       :: n_in_survey_volume
-   real*4,allocatable                              :: dc(:),ra(:),dec(:),x(:,:)
-   logical,allocatable                             :: ok(:)
-   logical                                         :: group_preselected
-   logical                                         :: last_galaxy_in_group
-   logical                                         :: wrapped
+   integer*4                                       :: nsam,d,isam,k
+   logical                                         :: selected
    integer*8                                       :: prefixid
    type(type_sky_galaxy),allocatable               :: sky_galaxy(:)
+   logical,allocatable                             :: sky_galaxy_selected(:)
    type(type_sky_group)                            :: sky_group
-   type(type_pos)                                  :: pos
    logical                                         :: position_selected
+   real*4                                          :: dx
+   integer*4                                       :: group_flag
+   real*4                                          :: xsam(3),xtile_min(3),xtile_max(3)
+   real*4,allocatable                              :: xtile(:,:)
+   logical                                         :: wrap_groups
+   logical                                         :: devoption_xzgrid
    
-   ! set tile
-   base%tile = itile
+   type type_lim
+      logical  :: survey = .false.
+      logical  :: snapshot = .false.
+      logical  :: tile = .false.
+      logical  :: shell = .false.
+   end type type_lim
    
-   ! allocate arrays
-   n = size(sam)
-   allocate(dc(n),ra(n),dec(n),x(n,3),ok(n),sky_galaxy_list(n),sky_group_list(n))
-   ok = .true.
+   type type_group
+      integer*8            :: id
+      integer*4            :: n
+      integer*4            :: n_selected = 0
+      integer*4            :: first_index
+      integer*4            :: last_index
+      type(type_lim)       :: has_galaxy_outside = type_lim()
+      type(type_lim)       :: is_at_edge_of = type_lim()
+      type(type_base)      :: central_galaxy_base = type_base()
+   end type type_group
    
-   ! initialise group flagging
-   call reset_group_variables
+   type(type_group)  :: group
+   
+   ! input checks
+   nsam = size(sam)
+   if (nsam>limit%n_galaxies_sky_max) call error('number of galaxies in mock sky potentially exceeds ',limit%n_galaxies_sky_max)
+   if (itile>limit%n_tiles_max) call error('number of tiles exceeds ',limit%n_tiles_max)
+   if (isubvolume>=limit%n_subvolumes_max) call error('number of subvolumes exceeds ',limit%n_subvolumes_max)
+   if (isnapshot>=limit%n_snapshots_max) call error('number of snapshots exceeds ',limit%n_snapshots_max)
+   
+   ! initialise variables
+   ishell = tile(itile)%shell
+   base%index%shell = ishell
+   base%index%tile = itile
    n_galaxies = 0
    n_groups = 0
-   n_galaxies_saved = 0
-   n_groups_saved = 0
-   if (n>limit%n_galaxies_sky_max) call error('number of galaxies in mock sky exceeds',limit%n_galaxies_sky_max)
-   if (itile>limit%n_tiles_max) call error('number of tiles exceeds',limit%n_tiles_max)
-   if (isubvolume>=limit%n_subvolumes_max) call error('number of subvolumes exceeds',limit%n_subvolumes_max)
-   if (isnapshot>=limit%n_snapshots_max) call error('number of snapshots exceeds',limit%n_snapshots_max)
    prefixid = int(limit%n_galaxies_per_tile_max,8)*(int(limit%n_subvolumes_max,8)*int(isnapshot,8)+int(isubvolume,8))
+   devoption_xzgrid = devoption('xzgrid')
+   wrap_groups = trim(para%randomisation)=='tiles'
    
-   ! iterate over all mock galaxies in the subvolume, ordered by group, and check how groups have been truncated
-   do i = 1,n
+   ! allocate galaxy-arrays
+   allocate(sky_galaxy_list(nsam),sky_group_list(nsam))
+
+   ! iterate over all mock galaxies in the subvolume, group-by-group
+   isam = 0
+   do while (isam<nsam)
       
-      ! count number of galaxies in the group
-      base%group_ntot = base%group_ntot+1
+      ! initialise new group
+      call reset_group(group,isam+1)
+      if (allocated(sky_galaxy)) deallocate(sky_galaxy)
+      allocate(sky_galaxy(group%n))
+      if (allocated(sky_galaxy_selected)) deallocate(sky_galaxy_selected)
+      allocate(sky_galaxy_selected(group%n))
+      if (allocated(xtile)) deallocate(xtile)
+      allocate(xtile(group%n,3))
+      base%index%group = group%id
       
-      ! check if this galaxy is the last in its group
-      last_galaxy_in_group = (sam(i)%get_groupid().ne.sam(min(i+1,n))%get_groupid()).or.(i==n)
+      ! make galaxy positions in tile
+      do k = 1,group%n
       
-      ! compute sky position and determine range
-      call convert_position_sam_to_sky(sam(i)%get_position()/para%box_side,itile,dc(i),ra(i),dec(i),x(i,:),xbox)
-      do j = 1,3
-         xmin(j) = min(xmin(j),xbox(j))
-         xmax(j) = max(xmax(j),xbox(j))
+         ! evaluate normalised position of object in sam-output
+         xsam = sam(isam+k)%get_position()/para%box_side
+         if (devoption_xzgrid) then
+            d = mod(isam+k,2)*2+1
+            xsam(d) = max(1,min(2,nint(xsam(d)*2+0.5)))/2.0-0.25
+            xsam(2) = 0.5 ! moves objects to the xz-plane
+         end if
+      
+         ! apply tile-symmetry to normalised coordinates
+         xtile(k,:) = apply_tile_symmetry(xsam,itile)
+         
+      end do
+      
+      ! handle wrapped groups
+      do d = 1,3
+         xtile_min(d) = minval(xtile(:,d))
+         xtile_max(d) = maxval(xtile(:,d))
+      end do
+      dx = maxval(xtile_max-xtile_min)
+      if ((dx>limit%group_diameter_max).and.(dx<1.0-limit%group_diameter_max)) then
+         if (.not.devoption_xzgrid) call error('group wider than box side times ',limit%group_diameter_max)
+      end if
+      if (dx>0.5) then ! group is wrapped
+         if (wrap_groups) then
+            group%is_at_edge_of%tile = .true.
+         else
+            group%is_at_edge_of%tile = .false.
+            ! translate all members to side of central, by allowing to step outside the box boundary
+            do d = 1,3
+               xtile(:,d) = modulo(xtile(:,d)+0.5,1.0)+xtile(1,d)-modulo(xtile(1,d)+0.5,1.0)
+            end do
+         end if
+      else
+         group%is_at_edge_of%tile = .false.
+      end if
+      
+      ! map galaxies onto sky and check full selection
+      do k = 1,group%n
+      
+         base%cartesian = map_tile_onto_sky(xtile(k,:),itile)
+         call car2sph(base%cartesian,base%spherical)
+      
+         ! check if distance is in the range covered by snapshot isnapshot
+         selected = .true.
+         if ((base%spherical%dc<snapshot(isnapshot)%dmin).or.(base%spherical%dc>=snapshot(isnapshot)%dmax)) then
+            group%has_galaxy_outside%snapshot = .true.
+            selected = .false.
+         end if
+      
+         ! check if distance is in the range covered by shell
+         if ((base%spherical%dc<shell(ishell)%dmin).or.(base%spherical%dc>=shell(ishell)%dmax)) then
+            group%has_galaxy_outside%shell = .true.
+            selected = .false.
+         end if
+   
+         ! check full position
+         position_selected = is_in_fov(base%spherical)
+         if (position_selected) then
+            call selection_function(pos=sph_deg_l(base%spherical),selected=position_selected)
+         end if
+         if (.not.position_selected) then
+            group%has_galaxy_outside%survey = .true.
+            selected = .false.
+         end if
+      
+         ! check sam(+pos(+sky))
+         selected = selected.and.sam_sel(isam+k)
+         if (selected) then
+            call selection_function(pos=sph_deg_l(base%spherical),sam=sam(isam+k),selected=selected)
+            if (selected) then
+               base%index%galaxy = prefixid+n_galaxies+1
+               call make_sky_object(sky_galaxy(k),sam(isam+k),convert_units(base))
+               call make_sky_galaxy(sky_galaxy(k),sam(isam+k),convert_units(base))
+               call selection_function(pos=sph_deg_l(base%spherical),sam=sam(isam+k),sky=sky_galaxy(k),selected=selected)
+            end if
+         end if
+   
+         ! save / count selected galaxy
+         if (selected) then
+            n_galaxies = n_galaxies+1
+            group%n_selected = group%n_selected+1
+            sam_replica(isam+k) = sam_replica(isam+k)+1
+            sky_galaxy_list(n_galaxies) = sky_galaxy(k)
+         else
+            base%index%galaxy = -1 ! just to make sure that the id of the central group galaxy is -1, if this galaxy is not selected 
+         end if
+   
+         ! save some properties for group
+         sky_galaxy_selected(k) = selected
+         if (k==1) group%central_galaxy_base = base
+         
       end do
    
-      ! check if distance is in the range covered by snapshot isnapshot
-      if ((dc(i)>=snapshot(isnapshot)%dmin).and.(dc(i)<snapshot(isnapshot)%dmax)) then
-         n_in_snapshot = n_in_snapshot+1
-      else
-         ok(i) = .false. ! => this object will be rejected
+      ! make group
+      if ((para%make_groups).and.(group%n>1).and.(group%n_selected>0)) then ! by choice, we only consider a group as such, if it has at least 2 members
+      
+         n_groups = n_groups+1
+
+         ! make truncation flag
+         group%is_at_edge_of%survey = group%has_galaxy_outside%survey
+         group%is_at_edge_of%snapshot = group%has_galaxy_outside%snapshot
+         group%is_at_edge_of%shell = group%has_galaxy_outside%shell
+         group_flag = log2int(group%is_at_edge_of%survey)+2*log2int(group%is_at_edge_of%snapshot)+ &
+         & 4*log2int(group%is_at_edge_of%tile)+8*log2int(group%is_at_edge_of%shell)
+      
+         ! make group
+         call make_sky_object(sky_group,sam(group%first_index),convert_units(group%central_galaxy_base))
+         call make_sky_group(sky_group,sam(group%first_index:group%last_index),sky_galaxy, &
+         & sky_galaxy_selected,convert_units(group%central_galaxy_base),group_flag)
+
+         ! save group
+         sky_group_list(n_groups) = sky_group
+   
       end if
       
-      ! check full position
-      pos%dc = dc(i)*para%box_side ! [simulation length unit]
-      pos%ra = ra(i) ! [rad]
-      pos%dec = dec(i) ![rad]
-      position_selected = is_in_fov(pos)
-      if (position_selected) then
-         pos%ra = pos%ra/unit%degree ! [deg]
-         pos%dec = pos%dec/unit%degree ! [deg]
-         call selection_function(pos=pos,selected=position_selected)
-      end if
-      if (position_selected) then
-         n_in_survey_volume = n_in_survey_volume+1
-      else
-         ok(i) = .false. ! => this object will be rejected
-      end if
-      
-      ! check if any galaxy satisfies the snapshot+position selection
-      group_preselected = group_preselected.or.ok(i) ! true if at least one galaxy in the group has passed the previous tests
-      
-      ! close this group
-      if (last_galaxy_in_group) then ! check if group id differs from next group id
-      
-         if (group_preselected) then
-         
-            ! allocate sky array
-            jmin = i-base%group_ntot+1
-            if (allocated(sky_galaxy)) deallocate(sky_galaxy)
-            allocate(sky_galaxy(jmin:i))
-            
-            ! make group id
-            if (base%group_ntot==1) then
-               base%groupid = -1_8
-            else
-               base%groupid = prefixid+n_groups+1
-            end if
-            
-            ! make group flag
-            if (base%group_ntot==1) then
-               base%group_flag = 0
-            else
-               wrapped = maxval(xmax-xmin)>0.5
-               base%group_flag = 0
-               if (n_in_survey_volume.ne.base%group_ntot) base%group_flag = base%group_flag+1   ! group truncated by survey volume
-               if (n_in_snapshot.ne.base%group_ntot) base%group_flag = base%group_flag+2        ! group truncated by snapshot limit
-               if (wrapped) base%group_flag = base%group_flag+4                                 ! group wrapped around
-            end if
-               
-            ! re-iterate over all accepted group members to check if they also pass the selection by sam, pos+sam and sky
-            group_nselected = 0
-            do j = jmin,i
-               if (ok(j)) then
-                  ok(j) = .false.
-                  if (sam_sel(j)) then
-                     base%galaxyid = prefixid+n_galaxies+1
-                     pos%dc = dc(j)*para%box_side
-                     pos%ra = ra(j)/unit%degree
-                     pos%dec = dec(j)/unit%degree
-                     ok(j) = .true.
-                     call selection_function(pos=pos,sam=sam(j),selected=ok(j))
-                     if (ok(j)) then
-                        base%ra = ra(j)
-                        base%dec = dec(j)
-                        base%dc = dc(j)
-                        call make_sky_object(sky_galaxy(j),sam(j),base)
-                        call make_sky_galaxy(sky_galaxy(j),sam(j),base)
-                        call selection_function(pos=pos,sam=sam(j),sky=sky_galaxy(j),selected=ok(j))
-                        if (ok(j)) then
-                           n_galaxies = n_galaxies+1
-                           group_nselected = group_nselected+1
-                           sam_replica(j) = sam_replica(j)+1
-                        end if
-                     end if
-                  end if
-               end if
-            end do
-            
-            ! if at least one group member has passed all the selections, write relevant galaxies
-            if (group_nselected>0) then
-               
-               ! write group, if the "group" has intrinsically more than one member (and if user wants group)
-               if ((para%make_groups==1).and.(base%group_ntot>1)) then
-               
-                  n_groups = n_groups+1
-            
-                  if (.not.ok(jmin)) then
-                     ! jmin is a first group member (group centre), which has not been selected, but is saved
-                     ! for the group catalogue. In case this galaxy has been mapped far away from *all* the
-                     ! selected group members, due to wrapping at the edge of the tile, it is here moved back
-                     ! next to the selected galaxies in the group, accepting a violation of the tile boundary
-                     if (base%group_flag>=4) then ! group wrapped around
-                        xmin = 2.0
-                        xmax = -1.0
-                        do k = jmin+1,i
-                           if (ok(k)) then
-                              do d = 1,3
-                                 xmin(d) = min(xmin(d),x(k,d))
-                                 xmax(d) = max(xmax(d),x(k,d))
-                              end do
-                           end if
-                        end do
-                        if (maxval(xmax-xmin)<0.5) then
-                           dx = (xmax+xmin)/2.0-x(jmin,:)
-                           if (sum(dx**2)>0.25) then
-                              dx = nint(matmul(transpose(para%sky_rotation),dx))
-                              x(jmin,:) = x(jmin,:)+matmul(para%sky_rotation,dx)
-                              call car2sph(x(jmin,:),dc(jmin),ra(jmin),dec(jmin),astro=.true.)
-                           end if
-                        end if
-                     end if
-                  end if
-               
-                  ! make group
-                  base%dc = dc(jmin)
-                  base%ra = ra(jmin)
-                  base%dec = dec(jmin)
-                  base%galaxyid = -1
-                  call make_sky_object(sky_group,sam(jmin),base)
-                  call make_sky_group(sky_group,sam(jmin:i),sky_galaxy(jmin:i),ok(jmin:i),base)
-                  
-               end if
-               
-               ! save galaxies and groups
-               do j = jmin,i
-                  if (ok(j)) then
-                     n_galaxies_saved = n_galaxies_saved+1
-                     sky_galaxy_list(n_galaxies_saved) = sky_galaxy(j)
-                  end if
-               end do
-               if ((para%make_groups==1).and.(base%group_ntot>1)) then
-                  n_groups_saved = n_groups_saved+1
-                  sky_group_list(n_groups_saved) = sky_group
-               end if
-               
-            end if
-         
-         end if
-         
-         call reset_group_variables
-            
-      end if
-      
+      isam = isam+group%n
+   
    end do
    
-   sky_galaxy_list = sky_galaxy_list(1:n_galaxies_saved)
-   sky_group_list = sky_group_list(1:n_groups_saved)
-   
-   if (n_galaxies.ne.n_galaxies_saved) call deverror('n_galaxies.ne.n_galaxies_saved')
-   if (n_groups.ne.n_groups_saved) call deverror('n_groups.ne.n_groups_saved')
+   sky_galaxy_list = sky_galaxy_list(1:n_galaxies)
+   sky_group_list = sky_group_list(1:n_groups)
    
 contains
+
+   subroutine reset_group(group,first_index)
    
-   subroutine reset_group_variables
       implicit none
-      xmin = 2.0
-      xmax = -1.0
-      base%group_ntot = 0
-      n_in_snapshot = 0
-      n_in_survey_volume = 0
-      group_preselected = .false.
-   end subroutine reset_group_variables
+      type(type_group),intent(inout)   :: group
+      integer*4,intent(in)             :: first_index
+      integer*4                        :: i
+      logical                          :: last_galaxy_in_group
+      integer*8                        :: id
+      
+      do i = first_index,nsam
+         if (i==nsam) then
+            last_galaxy_in_group = .true.
+         else
+            last_galaxy_in_group = sam(i)%get_groupid()/=sam(i+1)%get_groupid()
+         end if
+         if (last_galaxy_in_group) exit
+      end do
+      
+      if ((para%make_groups).and.(i>first_index)) then ! group has at least 2 members
+         id = prefixid+n_groups+1
+      else
+         id = -1_8
+      end if
+      
+      group = type_group(first_index=first_index,last_index=i,n=i-first_index+1,id=id)
+      
+   end subroutine reset_group
+   
+   function convert_units(bin) result(bout)
+
+      ! converts rad to deg
+   
+      implicit none
+      type(type_base),intent(in) :: bin
+      type(type_base) :: bout
+   
+      bout = bin
+      bout%spherical%dc = bin%spherical%dc*para%box_side
+      bout%cartesian = bout%cartesian*para%box_side
+      
+   end function convert_units
 
 end subroutine place_subvolume_into_tile
 
@@ -612,124 +642,296 @@ end subroutine count_tiles_of_snapshot
 
 subroutine write_sky_to_hdf5
    
-      implicit none
-      integer*4                           :: isubvolume
-      type(type_sky_galaxy),allocatable   :: sky_galaxy(:)
-      type(type_sky_group),allocatable    :: sky_group(:)
-      character(255)                      :: filename
-      character(255)                      :: str
-      type(type_skystats)                 :: substats
-      type(type_skystats)                 :: totstats
-      
-      call tic('WRITE SKY TO HDF5 FILE')
-      
-      if (para%merge_output==1) then
-      
-         ! count galaxies and groups
-         do isubvolume = para%subvolume_min,para%subvolume_max
-            open(fid,file=filename_sky_galaxies(isubvolume),action='read',form='unformatted',access='stream')
-            read(fid) substats%n_galaxies
-            close(fid)
-            totstats%n_galaxies = totstats%n_galaxies+substats%n_galaxies
-            if (para%make_groups==1) then
-               open(fid,file=filename_sky_groups(isubvolume),action='read',form='unformatted',access='stream')
-               read(fid) substats%n_groups
-               close(fid)
-               totstats%n_groups = totstats%n_groups+substats%n_groups
-            end if
-         end do
-         
-         ! load galaxies and groups
-         allocate(sky_galaxy(totstats%n_galaxies))
-         allocate(sky_group(totstats%n_groups))
-         totstats%n_galaxies = 0
-         totstats%n_groups = 0
-         do isubvolume = para%subvolume_min,para%subvolume_max
-         
-            call out('Process subvolume ',isubvolume)
-            
-            ! galaxies
-            open(fid,file=filename_sky_galaxies(isubvolume),action='read',form='unformatted',access='stream')
-            read(fid) substats%n_galaxies,substats%n_distinct,substats%n_replica_max
-            read(fid) sky_galaxy(totstats%n_galaxies+1:totstats%n_galaxies+substats%n_galaxies)
-            close(fid)
-            totstats%n_galaxies = totstats%n_galaxies+substats%n_galaxies
-            totstats%n_distinct = totstats%n_distinct+substats%n_distinct
-            totstats%n_replica_max = max(totstats%n_replica_max,substats%n_replica_max)
-            
-            ! groups
-            if (para%make_groups==1) then
-               open(fid,file=filename_sky_groups(isubvolume),action='read',form='unformatted',access='stream')
-               read(fid) substats%n_groups
-               read(fid) sky_group(totstats%n_groups+1:totstats%n_groups+substats%n_groups)
-               close(fid)
-               totstats%n_groups = totstats%n_groups+substats%n_groups
-            end if
-            
-         end do
-         
-         ! write single new file
-         filename = trim(para%path_output)//trim(para%filename_sky)//'.hdf5'
-         call out('Write file ',trim(filename))
-         call make_hdf5(trim(filename),sky_galaxy,sky_group,totstats)
-         
-         ! delete binary files
-         do isubvolume = para%subvolume_min,para%subvolume_max
-            if (para%keep_binaries==0) then
-               call system('rm '//filename_sky_galaxies(isubvolume))
-               if (para%make_groups==1) call system('rm '//filename_sky_groups(isubvolume))
-            end if
-         end do
-      
-      else
-      
-         do isubvolume = para%subvolume_min,para%subvolume_max
-      
-            ! user output
-            write(filename,'(A,A,A,I0,A)') trim(para%path_output),trim(para%filename_sky),'.',isubvolume,'.hdf5'
-            write(str,'(A,I0,A,A)') 'Write subvolume ',isubvolume,' to ',trim(filename)
-            call out(str)
-         
-            ! load galaxies
-            open(fid,file=filename_sky_galaxies(isubvolume),action='read',form='unformatted',access='stream')
-            read(fid) substats%n_galaxies,substats%n_distinct,substats%n_replica_max
-            allocate(sky_galaxy(totstats%n_galaxies+1:totstats%n_galaxies+substats%n_galaxies))
-            read(fid) sky_galaxy
-            close(fid)
-            totstats%n_galaxies = totstats%n_galaxies+substats%n_galaxies
-         
-            ! load groups
-            if (para%make_groups==1) then
-               open(fid,file=filename_sky_groups(isubvolume),action='read',form='unformatted',access='stream')
-               read(fid) substats%n_groups
-               allocate(sky_group(totstats%n_groups+1:totstats%n_groups+substats%n_groups))
-               read(fid) sky_group
-               close(fid)
-               totstats%n_groups = totstats%n_groups+substats%n_groups
-            end if
-         
-            ! write new file
-            call make_hdf5(trim(filename),sky_galaxy,sky_group,totstats,substats,isubvolume)
-         
-            ! free memory
-            deallocate(sky_galaxy)
-            deallocate(sky_group)
-            
-            ! delete binary files
-            if (para%keep_binaries==0) then
-               call system('rm '//filename_sky_galaxies(isubvolume))
-               if (para%make_groups==1) call system('rm '//filename_sky_groups(isubvolume))
-            end if
-         
-         end do
-         
+   implicit none
+   integer*4                           :: isubvolume,i_galaxy,i_group
+   type(type_sky_galaxy),allocatable   :: sky_galaxy(:)
+   type(type_sky_group),allocatable    :: sky_group(:)
+   character(255)                      :: filename
+   character(255)                      :: str
+   type(type_skystats)                 :: substats
+   type(type_skystats)                 :: totstats
+   
+   call tic('WRITE SKY TO HDF5 FILE')
+   
+   i_galaxy = 0
+   i_group = 0
+   
+   if (para%merge_output) then
+   
+      ! count galaxies and groups
+      isubvolume = para%subvolume_min
+      open(fid,file=filename_sky_galaxies(isubvolume),action='read',form='unformatted',access='stream')
+      read(fid) totstats%n_galaxies
+      close(fid)
+      if (para%make_groups) then
+         open(fid,file=filename_sky_groups(isubvolume),action='read',form='unformatted',access='stream')
+         read(fid) totstats%n_groups
+         close(fid)
       end if
       
-      ! user output
-      call out('Number of galaxies in mock sky: ',totstats%n_galaxies)
-      if (para%make_groups==1) call out('Number of groups in mock sky: ',totstats%n_groups)
-      call toc
+      ! load galaxies and groups
+      allocate(sky_galaxy(totstats%n_galaxies))
+      allocate(sky_group(totstats%n_groups))
+      do isubvolume = para%subvolume_min,para%subvolume_max
+      
+         call out('Process subvolume ',isubvolume)
+         
+         ! galaxies
+         open(fid,file=filename_sky_galaxies(isubvolume),action='read',form='unformatted',access='stream')
+         read(fid) totstats%n_galaxies,totstats%n_distinct,totstats%n_replica_max
+         read(fid) substats%n_galaxies,substats%n_distinct,substats%n_replica_max
+         read(fid) sky_galaxy(i_galaxy+1:i_galaxy+substats%n_galaxies)
+         close(fid)
+         i_galaxy = i_galaxy+substats%n_galaxies
+         
+         ! groups
+         if (para%make_groups) then
+            open(fid,file=filename_sky_groups(isubvolume),action='read',form='unformatted',access='stream')
+            read(fid) totstats%n_groups,substats%n_groups
+            read(fid) sky_group(i_group+1:i_group+substats%n_groups)
+            close(fid)
+            i_group = i_group+substats%n_groups
+         end if
+         
+      end do
+      
+      ! write single new file
+      filename = trim(para%path_output)//trim(para%filename_sky)//'.hdf5'
+      call out('Write file ',trim(filename))
+      call make_hdf5(trim(filename),totstats)
+      call write_hdf5(trim(filename),sky_galaxy,sky_group)
+      
+      ! delete binary files
+      do isubvolume = para%subvolume_min,para%subvolume_max
+         if (.not.para%keep_binaries) then
+            call system('rm '//filename_sky_galaxies(isubvolume))
+            if (para%make_groups) call system('rm '//filename_sky_groups(isubvolume))
+         end if
+      end do
    
-   end subroutine write_sky_to_hdf5
+   else
+   
+      do isubvolume = para%subvolume_min,para%subvolume_max
+   
+         ! user output
+         write(filename,'(A,A,A,I0,A)') trim(para%path_output),trim(para%filename_sky),'.',isubvolume,'.hdf5'
+         write(str,'(A,I0,A,A)') 'Write subvolume ',isubvolume,' to ',trim(filename)
+         call out(str)
+      
+         ! load galaxies
+         open(fid,file=filename_sky_galaxies(isubvolume),action='read',form='unformatted',access='stream')
+         read(fid) totstats%n_galaxies,totstats%n_distinct,totstats%n_replica_max
+         read(fid) substats%n_galaxies,substats%n_distinct,substats%n_replica_max
+         allocate(sky_galaxy(i_galaxy+1:i_galaxy+substats%n_galaxies))
+         read(fid) sky_galaxy
+         close(fid)
+         i_galaxy = i_galaxy+substats%n_galaxies
+      
+         ! load groups
+         if (para%make_groups) then
+            open(fid,file=filename_sky_groups(isubvolume),action='read',form='unformatted',access='stream')
+            read(fid) totstats%n_groups,substats%n_groups
+            allocate(sky_group(i_group+1:i_group+substats%n_groups))
+            read(fid) sky_group
+            close(fid)
+            i_group = i_group+substats%n_groups
+         end if
+      
+         ! write new file
+         call make_hdf5(trim(filename),totstats,substats,isubvolume)
+         call write_hdf5(trim(filename),sky_galaxy,sky_group)
+      
+         ! free memory
+         deallocate(sky_galaxy)
+         deallocate(sky_group)
+         
+         ! delete binary files
+         if (.not.para%keep_binaries) then
+            call system('rm '//filename_sky_galaxies(isubvolume))
+            if (para%make_groups) call system('rm '//filename_sky_groups(isubvolume))
+         end if
+      
+      end do
+      
+   end if
+   
+   if (i_galaxy/=totstats%n_galaxies) call deverror('i_galaxy/=totstats%n_galaxies')
+   if ((para%make_groups).and.(i_group/=totstats%n_groups)) call deverror('i_group/=totstats%n_groups')
+   
+   ! user output
+   call out('Number of galaxies in mock sky: ',totstats%n_galaxies)
+   if (para%make_groups) call out('Number of groups in mock sky: ',totstats%n_groups)
+   call toc
+
+end subroutine write_sky_to_hdf5
+
+subroutine make_hdf5(filename_hdf5,totstats,substats,isubvolume)
+
+   implicit none
+   character(*),intent(in)                      :: filename_hdf5  ! output filename
+   type(type_skystats),intent(in)               :: totstats
+   type(type_skystats),intent(in),optional      :: substats ! only provided if the sky corresponds to a subvolume
+   integer*4,intent(in),optional                :: isubvolume
+   character(:),allocatable                     :: name
+   integer*4                                    :: i
+
+   allocate(character(1)::name) ! empty allocation to avoid compiler flags
+
+  ! create and open HDF5 file
+   call hdf5_create(filename_hdf5)
+   call hdf5_open(filename_hdf5,.true.)
+   
+   ! write group "run_info"
+   name = 'run_info/'
+   call hdf5_add_group(name)
+   call hdf5_write_data(name//'stingray_version',version,'Version of Stingray used to produce this mock sky')
+
+   ! write group "parameters"
+   name = 'parameters/'
+   call hdf5_add_group(name)
+   call hdf5_write_data(name//'survey',para%survey,'name of simulated survey')
+   call hdf5_write_data(name//'path_output',para%path_output)
+   call hdf5_write_data(name//'path_input',para%path_input)
+   call hdf5_write_data(name//'box_side',para%box_side, &
+   & '[length_unit] comoving side-length of simulation box in multiples of length_unit')
+   call hdf5_write_data(name//'length_unit',para%length_unit,'[m] SI-value of comoving length unit')
+   call hdf5_write_data(name//'snapshot_min',para%snapshot_min,'index of earliest snapshot used for the mock sky')
+   call hdf5_write_data(name//'snapshot_max',para%snapshot_max,'index of latest snapshot used for the mock sky')
+   call hdf5_write_data(name//'subvolume_min',para%subvolume_min,'index of first subvolume used for the mock sky')
+   call hdf5_write_data(name//'subvolume_max',para%subvolume_max,'index of last subvolume used for the mock sky')
+   call hdf5_write_data(name//'h',para%h,'[-] Hubble parameter H0=h*100 km/s/Mpc')
+   call hdf5_write_data(name//'omega_l',para%omega_l,'energy density of dark energy relative to closure density')
+   call hdf5_write_data(name//'omega_m',para%omega_m,'energy density of all matter relative to closure density')
+   call hdf5_write_data(name//'omega_b',para%omega_b,'energy density of baryonic matter relative to closure density')
+   call hdf5_write_data(name//'randomisation',para%randomisation,'Method used to randomize cosmic large-scale structure')
+   call hdf5_write_data(name//'seed',para%seed,'seed for the random number generator of symmetry operations')
+   call hdf5_write_data(name//'translate',para%translate, &
+   & 'logical flag specifying if random translations are applied (0=false, 1=true)')
+   call hdf5_write_data(name//'rotate',para%rotate, &
+   & 'logical flag specifying if random rotations are applied (0=false, 1=true)')
+   call hdf5_write_data(name//'invert',para%invert, &
+   & 'logical flag specifying if random inversions are applied (0=false, 1=true)')
+   call hdf5_write_data(name//'fixed_observer_position',para%fix_observer_rotation, &
+   & 'logical flag specifying if the position of the observer in the nbody box is fixed (0=false, 1=true)')
+   call hdf5_write_data(name//'observer_x',para%observer_x, &
+   & '[length units] x-coordinate of fixed observere position in the N-body box')
+   call hdf5_write_data(name//'observer_y',para%observer_y, &
+   & '[length units] y-coordinate of fixed observere position in the N-body box')
+   call hdf5_write_data(name//'observer_z',para%observer_z, &
+   & '[length units] z-coordinate of fixed observere position in the N-body box')
+   call hdf5_write_data(name//'fixed_observer_rotation',para%fix_observer_rotation, &
+   & 'logical flag specifying if the rotation between the N-body and sky coordinates at the observer is fixed (0=false, 1=true)')
+   call hdf5_write_data(name//'zaxis_ra',para%zaxis_ra/unit%degree, &
+   & '[deg] RA coordinate of the SAM z-axis in spherical survey coordinates')
+   call hdf5_write_data(name//'zaxis_dec',para%zaxis_dec/unit%degree, &
+   & '[deg] Dec coordinate the SAM z-axis in spherical survey coordinates')
+   call hdf5_write_data(name//'xy_angle',para%xy_angle/unit%degree,'[deg] Rotation of the SAM (x,y)-plane on the sky')
+   call hdf5_write_data(name//'velocity_norm',para%velocity_norm, &
+   & '[km/s] observer velocity relative to CMB rest-frame')
+   call hdf5_write_data(name//'velocity_ra',para%velocity_ra, &
+   & '[deg] RA coordinate to which the observer is moving relative to CMB rest-frame')
+   call hdf5_write_data(name//'velocity_dec',para%velocity_dec, &
+   & '[deg] Dec coordinate to which the observer is moving relative to CMB rest-frame')
+   call hdf5_write_data(name//'search_angle',para%search_angle, &
+   & '[deg] typical angle in which overlaps between survey volume and tiling grid are searched')
+   call hdf5_write_data(name//'volume_search_level',para%volume_search_level, &
+   & 'specifies the number of search points (2^#)^3 inside each tile')
+   call hdf5_write_data(name//'options',para%options, &
+   & 'string of options specifying what properties are generated')
+   call hdf5_write_data(name//'keep_binaries',para%keep_binaries, &
+   & 'logical flag specifying if binary output files are kept in additino to this HDF5 (0=false, 1=true)')
+   call hdf5_write_data(name//'keep_log',para%keep_binaries, &
+   & 'logical flag specifying if the logfile is kept after successful runs (0=false, 1=true)')
+
+   ! write group "snapshots"
+   name = 'snapshots/'
+   call hdf5_add_group(name)
+   call hdf5_write_data(name//'id',(/(i,i=para%snapshot_min,para%snapshot_max)/), &
+   & 'snapshot number')
+   call hdf5_write_data(name//'z',snapshot%redshift, &
+   & 'redshift corresponding to the cosmic time of this snapshot')
+   call hdf5_write_data(name//'dc_min',snapshot%dmin, &
+   & '[box side length] minimal comoving distance at which this snapshot is used')
+   call hdf5_write_data(name//'dc_max',snapshot%dmax, &
+   & '[box side length] maximal comoving distance at which this snapshot is used')
+   call hdf5_write_data(name//'n_tiles',snapshot%n_tiles, &
+   & 'Number of tiles this snapshot has been considered for, irrespective of whether a galaxy was selected')
+
+   ! write group "tiles"
+   name = 'tiles/'
+   call hdf5_add_group(name)
+   call hdf5_write_data(name//'tile_id',(/(i,i=1,size(tile),1)/),'index of cubic tile')
+   call hdf5_write_data(name//'shell_id',tile%shell,'index of the shell containing the cubic tile')
+   call hdf5_write_data(name//'center_x',tile%ix(1),'[box side length] x-coordinate of tile centre')
+   call hdf5_write_data(name//'center_y',tile%ix(2),'[box side length] y-coordinate of tile centre')
+   call hdf5_write_data(name//'center_z',tile%ix(3),'[box side length] z-coordinate of tile centre')
+   call hdf5_write_data(name//'dc_min',tile%dmin,'[box side length] minimum comoving distance of tile')
+   call hdf5_write_data(name//'dc_max',tile%dmax,'[box side length] maximum comoving distance of tile')
+   call hdf5_add_group(name//'transformation')
+   call hdf5_write_data(name//'transformation/rotation_xx',tile%transformation%rotation(1,1),'xx-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_xy',tile%transformation%rotation(1,2),'xy-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_xz',tile%transformation%rotation(1,3),'xz-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_yx',tile%transformation%rotation(2,1),'yx-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_yy',tile%transformation%rotation(2,2),'yy-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_yz',tile%transformation%rotation(2,3),'yz-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_zx',tile%transformation%rotation(3,1),'zx-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_zy',tile%transformation%rotation(3,2),'zy-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_zz',tile%transformation%rotation(3,3),'zz-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/translation_x',tile%transformation%translation(1), & 
+   & '[box side length] x-component of translation vector')
+   call hdf5_write_data(name//'transformation/translation_y',tile%transformation%translation(2), & 
+   & '[box side length] y-component of translation vector')
+   call hdf5_write_data(name//'transformation/translation_z',tile%transformation%translation(3), & 
+   & '[box side length] z-component of translation vector')
+   call hdf5_write_data(name//'transformation/inverted',tile%transformation%inverted, &
+   & 'logical flag for axis inversion (0 = no inversion, 1 = all three axes inverted)')
+
+   ! write group "shells"
+   name = 'shells/'
+   call hdf5_add_group(name)
+   call hdf5_write_data(name//'shell_id',(/(i,i=1,size(shell),1)/),'index of spherical shell')
+   call hdf5_write_data(name//'dc_min',shell%dmin,'[box side length] minimum comoving distance of shell')
+   call hdf5_write_data(name//'dc_max',shell%dmax,'[box side length] maximum comoving distance of shell')
+   call hdf5_add_group(name//'transformation')
+   call hdf5_write_data(name//'transformation/rotation_xx',shell%transformation%rotation(1,1),'xx-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_xy',shell%transformation%rotation(1,2),'xy-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_xz',shell%transformation%rotation(1,3),'xz-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_yx',shell%transformation%rotation(2,1),'yx-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_yy',shell%transformation%rotation(2,2),'yy-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_yz',shell%transformation%rotation(2,3),'yz-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_zx',shell%transformation%rotation(3,1),'zx-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_zy',shell%transformation%rotation(3,2),'zy-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_zz',shell%transformation%rotation(3,3),'zz-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/translation_x',shell%transformation%translation(1), & 
+   & '[box side length] x-component of translation vector')
+   call hdf5_write_data(name//'transformation/translation_y',shell%transformation%translation(2), & 
+   & '[box side length] y-component of translation vector')
+   call hdf5_write_data(name//'transformation/translation_z',shell%transformation%translation(3), & 
+   & '[box side length] z-component of translation vector')
+   call hdf5_write_data(name//'transformation/inverted',shell%transformation%inverted, &
+   & 'logical flag for axis inversion (0 = no inversion, 1 = all three axes inverted)')
+   
+   ! write group "statistics"
+   name = 'statistics/'
+   call hdf5_add_group(name)
+   call hdf5_write_data(name//'n_galaxies',totstats%n_galaxies,'Number of galaxies')
+   call hdf5_write_data(name//'n_groups',totstats%n_groups,'Number of groups')
+   call hdf5_write_data(name//'n_replica_mean',real(totstats%n_galaxies,4).safedivide.real(totstats%n_distinct,4),&
+   & 'Mean number a galaxy was replicated)')
+   call hdf5_write_data(name//'n_replica_max',totstats%n_replica_max,'Maximum number a galaxy was replicated')
+   if (present(substats).and.present(isubvolume)) then
+      call hdf5_write_data(name//'subvolume_index',isubvolume,'Index of the SAM subvolume used in this file')
+      call hdf5_write_data(name//'subvolume_n_galaxies',substats%n_galaxies,'Number of galaxies in this subvolume')
+      call hdf5_write_data(name//'subvolume_n_groups',substats%n_groups,'Number of groups in this subvolume')
+      call hdf5_write_data(name//'subvolume_n_replica_mean',real(substats%n_galaxies,4).safedivide.real(substats%n_distinct,4),&
+      & 'Mean number a galaxy was replicated in this subvolume)')
+      call hdf5_write_data(name//'subvolume_n_replica_max',substats%n_replica_max,&
+      &'Maximum number a galaxy was replicated in this subvolume')   
+   end if
+
+   ! close HDF5 file
+   call hdf5_close()
+
+end subroutine make_hdf5
    
 end module module_sky

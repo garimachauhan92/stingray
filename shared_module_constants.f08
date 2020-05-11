@@ -1,5 +1,5 @@
 ! **********************************************************************************************************************************
-! Shared Fortran module defining scientific constants
+! Shared Fortran module defining physical and mathematical constants
 ! Developed by Danail Obreschkow
 ! **********************************************************************************************************************************
 
@@ -19,6 +19,8 @@ module shared_module_constants
       real*4   :: pi = 3.14159265359
       real*4   :: e = 2.7182818284
       real*4   :: golden = 1.618033988749894 ! golden ratio
+      real*4   :: identity2(2,2) = reshape((/1.0,0.0,0.0,1.0/),(/2,2/))
+      real*4   :: identity3(3,3) = reshape((/1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0/),(/3,3/))
       
       ! physical constants in SI units
       real*4   :: G = 6.67430e-11 ! [m^3/kg/s^2] gravitational constant
@@ -92,9 +94,9 @@ module shared_module_constants
    
    end type type_unit
    
-   type(type_const),protected    :: const
-   type(type_unit),protected     :: unit
-   type(type_planck),protected   :: planck
+   type(type_const),parameter    :: const = type_const()
+   type(type_unit),parameter     :: unit = type_unit()
+   type(type_planck),parameter   :: planck = type_planck()
    real*4,parameter              :: pi = 3.14159265359
    real*8,parameter              :: pi_8 = 3.1415926535897932384626433
    

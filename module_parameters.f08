@@ -10,17 +10,93 @@ module module_parameters
    
    private
    
-   public   :: make_parameters_input_path
-   public   :: make_parameters_from_file
-   public   :: keyword
+   public   :: read_parameterfile
+   public   :: initialize_parameters
+   public   :: option,devoption
+   public   :: para
    
    integer*4,parameter           :: n_keywords_max = 20
    integer*4,protected           :: n_keywords
    character(len=255),protected  :: keyword_name(n_keywords_max)
+   integer*4,protected           :: n_devwords
+   character(len=255),protected  :: devword_name(n_keywords_max)
+
+   type type_para
+
+      ! name of mock survey
+      character(len=255)   :: survey
+      
+      ! paths & file names
+      character(len=255)   :: path_input
+      character(len=255)   :: path_output
+      character(len=255)   :: filename_sky
+   
+      ! simulation box
+      real*4               :: box_side     ! [length unit of simulation] box side length
+      real*4               :: length_unit  ! [m] simulation length unit expressed in SI unit
+      integer*4            :: snapshot_min
+      integer*4            :: snapshot_max
+      integer*4            :: subvolume_min
+      integer*4            :: subvolume_max
+   
+      ! cosmology
+      real*4               :: h
+      real*4               :: omega_l
+      real*4               :: omega_m
+      real*4               :: omega_b
+
+      ! large-scale structure randomisation
+      character(7)         :: randomisation ! randomisation type, "none", "tile", "shell" or "single"
+      integer*4            :: seed  ! seed of random number generator (integer >=1)
+      logical*4            :: translate
+      logical*4            :: rotate
+      logical*4            :: invert
+      
+      ! observer position
+      logical*4            :: fix_observer_position
+      real*4               :: observer_x  ! [length unit]
+      real*4               :: observer_y  ! [length unit]
+      real*4               :: observer_z  ! [length unit]
+      
+      ! observer rotation
+      logical*4            :: fix_observer_rotation
+      real*4               :: zaxis_ra  ! [rad]
+      real*4               :: zaxis_dec ! [rad]
+      real*4               :: xy_angle  ! [rad]
+      
+      ! observer velocity relative to CMB
+      real*4               :: velocity_ra     ! [rad]
+      real*4               :: velocity_dec    ! [rad]
+      real*4               :: velocity_norm   ! [km/s] peculiar velocity of observer with respect to Hubble flow
+      
+      ! advanced options
+      real*4               :: search_angle         ! [rad] minimal angular separation of points on faces
+      real*4               :: volume_search_level
+      
+      ! galaxy options
+      logical*4            :: make_groups
+      character(len=255)   :: options
+      
+      ! I/O options
+      logical*4            :: merge_output
+      logical*4            :: keep_binaries
+      logical*4            :: keep_log
+      
+      ! derived parameters, not directly specified by the user (no default needed)
+      real*4               :: velocity_car(3)   ! [km/s] velocity of observer cartesian survey-coordinates
+      real*4               :: observer_translation(3) ! [box side length] fixed observer translation
+      real*4               :: observer_rotation(3,3) ! rotation matrix to move the (x,y,z)-sky axis onto the central (RA,dec)-sky
+      
+      ! hidden developer parameters
+      character(len=255)   :: devoptions
+      
+   end type type_para
+   
+   type(type_para),protected     :: para
    
 contains
 
-subroutine make_parameters_input_path
+subroutine read_parameterfile
 
    implicit none
    character(255)    :: parameter_filename
@@ -28,65 +104,67 @@ subroutine make_parameters_input_path
    
    call tic('MAKE PARAMETERS')
    
-   ! process user arguments
+   ! set parameter file name
    call get_option_value(parameter_filename,'-parameterfile',fn_parameters_default)
+   call set_parameterfile(trim(parameter_filename))
+   
+   ! set parameter set name
    call get_option_value(parameter_set,'-parameterset','')
    call set_parameterset(parameter_set)
    
    ! read parameter file
    call out('File: '//trim(parameter_filename))
-   call set_parameterfile(trim(parameter_filename))
-   call set_autostring('auto')
-   call handle_parameters
+   call read_parameters
    
    ! get input path
    call get_parameter_value(para%path_input,'path_input')
    para%path_input = dir(para%path_input,ispath=.true.)
    call check_file(para%path_input,permission='r')
+   
+end subroutine read_parameterfile
 
-end subroutine make_parameters_input_path
-
-subroutine make_parameters_from_file
+subroutine initialize_parameters
 
    implicit none
-   type(type_para)   :: empty,auto
-
-   ! store automatically made parameters and reset parameters to default values, specified in type_para
-   auto = para
-   para = empty
-   para%path_input = auto%path_input
    
    ! interpret parameters of parameter file
-   call get_parameter_value(para%survey,'survey',auto=auto%survey,min=1)
-   call get_parameter_value(para%path_output,'path_output',auto=auto%path_output,min=1)
-   call get_parameter_value(para%filename_sky,'filename_sky',auto=auto%filename_sky,min=1)
-   call get_parameter_value(para%box_side,'box_side',auto=auto%box_side,min=0.0)
-   call get_parameter_value(para%length_unit,'length_unit',auto=auto%length_unit,min=0.0)
-   call get_parameter_value(para%snapshot_min,'snapshot_min',auto=auto%snapshot_min,min=0)
-   call get_parameter_value(para%snapshot_max,'snapshot_max',auto=auto%snapshot_max,min=0)
-   call get_parameter_value(para%subvolume_min,'subvolume_min',auto=auto%subvolume_min,min=0)
-   call get_parameter_value(para%subvolume_max,'subvolume_max',auto=auto%subvolume_max,min=0)
-   call get_parameter_value(para%h,'h',auto=auto%h,min=0.1)
-   call get_parameter_value(para%omega_l,'omega_l',auto=auto%omega_l,min=0.0,max=1.0)
-   call get_parameter_value(para%omega_m,'omega_m',auto=auto%omega_m,min=0.0,max=1.0)
-   call get_parameter_value(para%omega_b,'omega_b',auto=auto%omega_b,min=0.0,max=1.0)
-   call get_parameter_value(para%zaxis_ra,'zaxis_ra',auto=auto%zaxis_ra,min=0.0,max=360.0)
-   call get_parameter_value(para%zaxis_dec,'zaxis_dec',auto=auto%zaxis_dec,min=-90.0,max=90.0)
-   call get_parameter_value(para%xy_angle,'xy_angle',auto=auto%xy_angle,min=0.0,max=360.0)
-   call get_parameter_value(para%seed,'seed',auto=auto%seed,min=1)
-   call get_parameter_value(para%translate,'translate',auto=auto%translate,min=0,max=1)
-   call get_parameter_value(para%rotate,'rotate',auto=auto%rotate,min=0,max=1)
-   call get_parameter_value(para%invert,'invert',auto=auto%invert,min=0,max=1)
-   call get_parameter_value(para%velocity_ra,'velocity_ra',auto=auto%velocity_ra,min=0.0,max=360.0)
-   call get_parameter_value(para%velocity_dec,'velocity_dec',auto=auto%velocity_dec,min=-90.0,max=90.0)
-   call get_parameter_value(para%velocity_norm,'velocity_norm',auto=auto%velocity_norm,min=0.0)
-   call get_parameter_value(para%search_angle,'search_angle',auto=auto%search_angle,min=0.0,max=10.0)
-   call get_parameter_value(para%volume_search_level,'volume_search_level',auto=auto%volume_search_level,min=0.0,max=10.0)
-   call get_parameter_value(para%make_groups,'make_groups',auto=auto%make_groups,min=0,max=1)
-   call get_parameter_value(para%options,'options',auto=auto%options)
-   call get_parameter_value(para%merge_output,'merge_output',auto=auto%merge_output,min=0,max=1)
-   call get_parameter_value(para%keep_binaries,'keep_binaries',auto=auto%keep_binaries,min=0,max=1)
-   call get_parameter_value(para%keep_log,'keep_log',auto=auto%keep_log,min=0,max=1)
+   call get_parameter_value(para%survey,'survey',min=1)
+   call get_parameter_value(para%path_output,'path_output',min=1)
+   call get_parameter_value(para%filename_sky,'filename_sky',min=1)
+   call get_parameter_value(para%box_side,'box_side',min=0.0)
+   call get_parameter_value(para%length_unit,'length_unit',min=0.0)
+   call get_parameter_value(para%snapshot_min,'snapshot_min',min=0)
+   call get_parameter_value(para%snapshot_max,'snapshot_max',min=0)
+   call get_parameter_value(para%subvolume_min,'subvolume_min',min=0)
+   call get_parameter_value(para%subvolume_max,'subvolume_max',min=0)
+   call get_parameter_value(para%h,'h',min=0.1)
+   call get_parameter_value(para%omega_l,'omega_l',min=0.0,max=1.0)
+   call get_parameter_value(para%omega_m,'omega_m',min=0.0,max=1.0)
+   call get_parameter_value(para%omega_b,'omega_b',min=0.0,max=1.0)
+   call get_parameter_value(para%randomisation,'randomisation')
+   call get_parameter_value(para%seed,'seed',min=1)
+   call get_parameter_value(para%translate,'translate')
+   call get_parameter_value(para%rotate,'rotate')
+   call get_parameter_value(para%invert,'invert')
+   call get_parameter_value(para%fix_observer_position,'fix_observer_position')
+   call get_parameter_value(para%observer_x,'observer_x',min=0.0)
+   call get_parameter_value(para%observer_y,'observer_y',min=0.0)
+   call get_parameter_value(para%observer_z,'observer_z',min=0.0)
+   call get_parameter_value(para%fix_observer_rotation,'fix_observer_rotation')
+   call get_parameter_value(para%zaxis_ra,'zaxis_ra',min=0.0,max=360.0)
+   call get_parameter_value(para%zaxis_dec,'zaxis_dec',min=-90.0,max=90.0)
+   call get_parameter_value(para%xy_angle,'xy_angle',min=0.0,max=360.0)
+   call get_parameter_value(para%velocity_ra,'velocity_ra',min=0.0,max=360.0)
+   call get_parameter_value(para%velocity_dec,'velocity_dec',min=-90.0,max=90.0)
+   call get_parameter_value(para%velocity_norm,'velocity_norm',min=0.0)
+   call get_parameter_value(para%search_angle,'search_angle',min=0.0,max=10.0)
+   call get_parameter_value(para%volume_search_level,'volume_search_level',min=0.0,max=10.0)
+   call get_parameter_value(para%make_groups,'make_groups')
+   call get_parameter_value(para%options,'options')
+   call get_parameter_value(para%merge_output,'merge_output')
+   call get_parameter_value(para%keep_binaries,'keep_binaries')
+   call get_parameter_value(para%keep_log,'keep_log')
+   call get_parameter_value(para%devoptions,'devoptions','')
    call require_no_parameters_left
    
    ! checks other than simple ranges
@@ -94,6 +172,11 @@ subroutine make_parameters_from_file
    if (para%subvolume_min>para%subvolume_max) call error('subvolume_min must be <= subvolume_max')
    if (para%omega_b>para%omega_m) call error('omega_b must be <= omega_m')
    if (para%velocity_norm>0.1*const%c) call error('observer velocity cannot exceed 0.1*c')
+   if (para%observer_x>para%box_side) call error('observer_x must not be larger than box_side')
+   if (para%observer_y>para%box_side) call error('observer_y must not be larger than box_side')
+   if (para%observer_z>para%box_side) call error('observer_z must not be larger than box_side')
+   if (.not.any(para%randomisation==(/'none   ','tiles  ','shells ','single '/))) &
+   & call error('randomisation must be either "none", "tiles", "shells" or "single"')
    
    ! make output path
    para%path_output = dir(para%path_output,ispath=.true.)
@@ -106,10 +189,11 @@ subroutine make_parameters_from_file
    ! compute derived parameters, such as the sky rotation matrix
    call make_derived_parameters
    call get_keywords
+   call get_devwords
    
    call toc
 
-end subroutine make_parameters_from_file
+end subroutine initialize_parameters
 
 subroutine convert_parameter_units
 
@@ -128,11 +212,11 @@ end subroutine convert_parameter_units
 subroutine make_derived_parameters
 
    call sph2car(para%velocity_norm,para%velocity_ra,para%velocity_dec,para%velocity_car,astro=.true.)
-   call make_sky_rotation
+   call fix_observer
 
 contains
 
-   subroutine make_sky_rotation
+   subroutine fix_observer
 
       implicit none
       real*4            :: rotationaxis(3)
@@ -140,19 +224,37 @@ contains
       real*4,parameter  :: ezsam(3) = (/0.0,0.0,1.0/) ! unit vector of the SAM z-axis inSAM coordinates
       real*4            :: ezsky(3) ! unit vector of the SAM z-axis in Survey coordinates
       
-      ! rotate SAM coordinates in the SAM xy-plane
-      para%sky_rotation = rotation_matrix(ezsam,para%xy_angle)
+      if (para%fix_observer_position) then
       
-      ! rotate SAM coordinates onto survey coordinates
-      call sph2car(1.0,para%zaxis_ra,para%zaxis_dec,ezsky,astro=.true.)
-      rotationaxis = ezsam.cross.ezsky
+         para%observer_translation = 0.5-(/para%observer_x,para%observer_y,para%observer_z/)/para%box_side
       
-      if ((norm(rotationaxis)>epsilon(1.0)).and.((ezsam.dot.ezsky)<1.0)) then
-         angle = acos(ezsam.dot.ezsky)
-         para%sky_rotation = matmul(rotation_matrix(rotationaxis,angle),para%sky_rotation)
+      else
+      
+         para%observer_translation = 0.0
+      
+      end if
+      
+      if (para%fix_observer_rotation) then
+      
+         ! rotate SAM coordinates in the SAM xy-plane
+         para%observer_rotation = rotation_matrix(ezsam,para%xy_angle)
+      
+         ! rotate SAM coordinates onto survey coordinates
+         call sph2car(1.0,para%zaxis_ra,para%zaxis_dec,ezsky,astro=.true.)
+         rotationaxis = ezsam.cross.ezsky
+      
+         if ((norm(rotationaxis)>epsilon(1.0)).and.((ezsam.dot.ezsky)<1.0)) then
+            angle = acos(ezsam.dot.ezsky)
+            para%observer_rotation = matmul(rotation_matrix(rotationaxis,angle),para%observer_rotation)
+         end if
+         
+      else
+      
+         para%observer_rotation = 0.0
+         
       end if
    
-   end subroutine make_sky_rotation
+   end subroutine fix_observer
 
 end subroutine make_derived_parameters
 
@@ -185,20 +287,65 @@ subroutine get_keywords
    
 end subroutine get_keywords
 
-logical function keyword(string)
+subroutine get_devwords
+   
+   implicit none
+   integer*4   :: i,imin,imax,n
+   
+   n_devwords = 0
+   
+   if (.not.isempty(para%devoptions)) then
+   
+      n = len(trim(para%devoptions))
+      imin = 1
+      do i = 1,n
+         if ((para%devoptions(i:i)==',').or.(i==n)) then
+            if (para%devoptions(i:i)==',') then
+               imax = i-1
+            else
+               imax = i
+            end if
+            if (imax<imin) call error('cannot interpret parameter "devoptions"')
+            n_devwords = n_devwords+1
+            devword_name(n_devwords) = para%devoptions(imin:imax)
+            imin = imax+2
+         end if
+      end do
+      
+   end if
+   
+end subroutine get_devwords
+
+logical function option(string)
 
    implicit none
    character(*),intent(in) :: string
    integer*4               :: i
    
-   keyword = .false.
+   option = .false.
    do i = 1,n_keywords
       if (trim(keyword_name(i))==trim(string)) then
-         keyword = .true.
+         option = .true.
          exit
       end if
    end do
    
-end function keyword
+end function option
+
+logical function devoption(string)
+
+   implicit none
+   character(*),intent(in) :: string
+   integer*4               :: i
+   
+   devoption = .false.
+   do i = 1,n_devwords
+      if (trim(devword_name(i))==trim(string)) then
+         devoption = .true.
+         exit
+      end if
+   end do
+   
+end function devoption
 
 end module module_parameters

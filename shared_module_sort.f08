@@ -12,6 +12,8 @@ module shared_module_sort
    interface sort
       module procedure merge_sort_list_int4
       module procedure merge_sort_list_int8
+      module procedure merge_sort_list_real4
+      module procedure merge_sort_list_real8
    end interface sort
 
 contains

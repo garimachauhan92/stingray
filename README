@@ -1,5 +1,5 @@
 OVERVIEW
-====================================================================================================================
+====================================================================================================================================
 
 Stingray is a Fortran tool to produce mock observing cones from semi-analytic models (SAMs) of galaxy formation.
 
@@ -27,12 +27,15 @@ v0.24 23/04/2020: Many additional galaxy properties, including all those added t
 v0.25 23/04/2020: All in Fortran 2008 standard
 v0.26 24/04/2020: Default parameterset via "parameterset*"
 v0.27 30/04/2020: Added module "shared_module_vectors", removed module "module_interface", minor fixes, comments
+v0.28 01/05/2020: New module "module_selection_tools" to simplify "module_user_selection_..."
+v0.29 04/05/2020: Parameter file with logical types, improved automatic parameter evaluation via set_auto_parameter routine
+v0.30 06/05/2020: New projection methods (see randomisation parameter)
 
 Developed by Danail Obreschkow (danail.obreschkow@icrar.org)
 
 
 GETTING STARTED
-====================================================================================================================
+====================================================================================================================================
 
 1) Installations:
    a) make sure gfortran is installed (code tested for GNU Fortran 9.3.0)
@@ -67,7 +70,7 @@ GETTING STARTED
    > ./stingray
    On most MacOS systems, stingray will be able to automatically find the path of the parameterfile
    and the small dataset included for testing. It will produce a small mocksky in the subdirectory 'test'.
-   The sky should contain 336 galaxies in 278 groups. If the parameterfile and/or paths cannot be found
+   The sky should contain 200 galaxies in 191 groups. If the parameterfile and/or paths cannot be found
    automatically, follow steps (8) and (9).
       
 8) Edit the parameter file parameter.txt, especially the input and output paths
@@ -81,9 +84,9 @@ GETTING STARTED
 
 
 QUICK START ON ICRAR-HYADES
-====================================================================================================================
+====================================================================================================================================
 
-# to install and compile stingray in your home directory, copy the following lines into the hyades terminal:
+# To install and compile stingray in your home directory, copy the following lines into the hyades terminal:
 cd ~
 rm -rf stingray/ # remove previous surfsuite directory
 git clone https://github.com/obreschkow/stingray # install updated version
@@ -92,12 +95,13 @@ module load gfortran/6.3.0 hdf5/1.10.2 # load required modules
 make system=hyades # compile code
 ./stingray version # check version
 
-# to run a quick test, producing 200 galaxies, execute the following line (still from within the stingray directory)
+# To run a quick test execute the following line (still from within the stingray directory)
+# The sky should contain 400 galaxies in 386 groups. The data is written in the directory "example"
 ./stingray
 
 
 ARGUMENTS
-====================================================================================================================
+====================================================================================================================================
 
 Generally, Stingray is called as
 > ./stingray [-option argument] [-option argument] ...

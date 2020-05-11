@@ -4,6 +4,7 @@ program stingray
    use shared_module_arguments
    use shared_module_parameters
    use shared_module_cosmology
+   use shared_module_maths
    use module_global
    use module_parameters
    use module_user_routines
@@ -14,18 +15,18 @@ program stingray
    implicit none
    
    ! start user interface
-   call set_version('0.27')
+   call set_version('0.30')
    call handle_arguments(require_task=.false.)
    call start_output
    
    ! read user arguments and parameters
-   call make_parameters_input_path
-   call make_automatic_parameters
-   call make_parameters_from_file
+   call read_parameterfile
    call require_no_options_left
+   call set_auto_string('auto')
+   call make_auto_parameters
    
    ! initialise variables
-   call initialize_global_variables
+   call initialize_parameters
    call set_cosmology('stingray',para%h,para%omega_m,para%omega_l)
    call assign_selection_function
    
@@ -35,6 +36,6 @@ program stingray
    call write_sky_to_hdf5
    
    ! finalize output on screen/logfile
-   call stop_output(delete_logfile=.not.int2log(para%keep_log))
+   call stop_output(delete_logfile=.not.para%keep_log)
     
 end program stingray

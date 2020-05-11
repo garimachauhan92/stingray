@@ -8,26 +8,32 @@ module module_conversion
    use shared_module_vectors
    use shared_module_constants
    use module_global
+   use module_parameters
    
    public
-   
+
 contains
 
-function rotate_vector(x,tileindex,ispseudovector) result(y)
+function rotate_vector(x,base,ispseudovector) result(y)
 
    implicit none
-   real*4,intent(in)    :: x(3)
-   integer*4,intent(in) :: tileindex
-   logical,intent(in)   :: ispseudovector
-   real*4               :: y(3)
-   real*4               :: rotationmatrix(3,3)
+   real*4,intent(in)          :: x(3)        ! vector to be rotated
+   type(type_base),intent(in) :: base
+   logical,intent(in)         :: ispseudovector
+   integer*4                  :: itile,ishell
+   real*4                     :: y(3)
+   real*4                     :: rotationmatrix(3,3)
+   real*4                     :: sgn
+   
+   itile = base%index%tile
+   ishell = base%index%shell
    
    if (ispseudovector) then
-      rotationmatrix = tile(tileindex)%Rvector
+      sgn = (1-2*log2int(shell(ishell)%transformation%inverted))*(1-2*log2int(tile(itile)%transformation%inverted))
    else
-      rotationmatrix = tile(tileindex)%Rpseudo
+      sgn = 1
    end if
-   
+   rotationmatrix = sgn*matmul(shell(ishell)%transformation%rotation,tile(itile)%transformation%rotation)
    y = matmul(rotationmatrix,x)
    
 end function rotate_vector

@@ -45,14 +45,17 @@ module shared_module_hdf5
       module procedure write_dataset_0d_int8
       module procedure write_dataset_0d_real4
       module procedure write_dataset_0d_real8
+      module procedure write_dataset_0d_log
       module procedure write_dataset_1d_int4
       module procedure write_dataset_1d_int8
       module procedure write_dataset_1d_real4
       module procedure write_dataset_1d_real8
+      module procedure write_dataset_1d_log
       module procedure write_dataset_2d_int4
       module procedure write_dataset_2d_int8
       module procedure write_dataset_2d_real4
       module procedure write_dataset_2d_real8
+      module procedure write_dataset_2d_log
    end interface hdf5_write_data
    
    integer(hid_t) :: file_id = 0
@@ -251,6 +254,17 @@ subroutine write_dataset_0d_int4(dataset,dat,attribute)
    
 end subroutine write_dataset_0d_int4
 
+subroutine write_dataset_0d_log(dataset,dat,attribute)
+
+   implicit none
+   character(*),intent(in)          :: dataset
+   logical,intent(in)               :: dat
+   character(*),intent(in),optional :: attribute ! optional explanation
+   
+   call write_dataset_1d_int4(dataset,(/log2int(dat)/),attribute)
+   
+end subroutine write_dataset_0d_log
+
 subroutine write_dataset_0d_int8(dataset,dat,attribute)
 
    implicit none
@@ -307,6 +321,17 @@ subroutine write_dataset_1d_int4(dataset,dat,attribute)
    call h5dclose_f(dataset_id,status) ! close data set
    
 end subroutine write_dataset_1d_int4
+
+subroutine write_dataset_1d_log(dataset,dat,attribute)
+
+   implicit none
+   character(*),intent(in)          :: dataset
+   logical,intent(in)               :: dat(:)
+   character(*),intent(in),optional :: attribute ! optional explanation
+   
+   call write_dataset_1d_int4(dataset,log2int(dat),attribute)
+   
+end subroutine write_dataset_1d_log
 
 subroutine write_dataset_1d_int8(dataset,dat,attribute)
 
@@ -404,6 +429,18 @@ subroutine write_dataset_2d_int4(dataset,dat,attribute)
    call h5dclose_f(dataset_id,status) ! close data set
    
 end subroutine write_dataset_2d_int4
+
+subroutine write_dataset_2d_log(dataset,dat,attribute)
+
+   implicit none
+   character(*),intent(in)          :: dataset
+   logical,intent(in)               :: dat(:,:)
+   character(*),intent(in),optional :: attribute ! optional explanation
+   
+   call write_dataset_2d_int4(dataset,log2int(dat),attribute)
+   
+end subroutine write_dataset_2d_log
+
 
 subroutine write_dataset_2d_int8(dataset,dat,attribute)
 
@@ -522,6 +559,8 @@ subroutine check_file_for_writing(dataset)
          exit
       end if
    end do
+   
+   if (hdf5_object_exists(dataset)) call error('dataset "'//trim(dataset)//'" already exists')
    
 end subroutine check_file_for_writing
 

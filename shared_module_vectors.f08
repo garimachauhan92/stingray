@@ -20,6 +20,7 @@ module shared_module_vectors
    public :: operator(.dot.)     ! scalar product of two vectors
    public :: operator(.cross.)   ! cross product of two 3-vectors
    public :: components          ! function converting a vector into its components
+   public :: component           ! function extracting a single component from a vector
    public :: norm                ! function returning the norm of a vector
    public :: unitvector          ! function scaling a vector to a unit vector with the same direction
    public :: scalar_product      ! scalar_product of two vectors (can also use "u.dot.v")
@@ -28,18 +29,18 @@ module shared_module_vectors
    public :: example_vectors     ! subroutine showing some example vector calculations
      
    type vector4
-      real*4 :: x
-      real*4 :: y
-      real*4 :: z
+      real*4 :: x = 0.0
+      real*4 :: y = 0.0
+      real*4 :: z = 0.0
    contains
       procedure :: norm => norm_vector4
       procedure :: unit => unit_vector4
    end type vector4
    
    type vector8
-      real*8 :: x
-      real*8 :: y
-      real*8 :: z
+      real*8 :: x = 0.0_8
+      real*8 :: y = 0.0_8
+      real*8 :: z = 0.0_8
    contains
       procedure :: norm => norm_vector8
       procedure :: unit => unit_vector8
@@ -117,6 +118,10 @@ module shared_module_vectors
       procedure scalar_product_vector8
       procedure scalar_product_array4
       procedure scalar_product_array8
+      procedure scalar_product_a4v4
+      procedure scalar_product_v4a4
+      procedure scalar_product_a8v8
+      procedure scalar_product_v8a8
    end interface operator(.dot.)
      
    interface operator(.cross.)
@@ -124,6 +129,10 @@ module shared_module_vectors
       procedure cross_product_vector8
       procedure cross_product_array4
       procedure cross_product_array8
+      procedure cross_product_a4v4
+      procedure cross_product_v4a4
+      procedure cross_product_a8v8
+      procedure cross_product_v8a8
    end interface operator(.cross.)
    
    interface norm
@@ -145,6 +154,10 @@ module shared_module_vectors
       procedure scalar_product_vector8
       procedure scalar_product_array4
       procedure scalar_product_array8
+      procedure scalar_product_a4v4
+      procedure scalar_product_v4a4
+      procedure scalar_product_a8v8
+      procedure scalar_product_v8a8
    end interface scalar_product
    
    interface cross_product
@@ -152,6 +165,10 @@ module shared_module_vectors
       procedure cross_product_vector8
       procedure cross_product_array4
       procedure cross_product_array8
+      procedure cross_product_a4v4
+      procedure cross_product_v4a4
+      procedure cross_product_a8v8
+      procedure cross_product_v8a8
    end interface cross_product
      
    interface matmul
@@ -169,6 +186,11 @@ module shared_module_vectors
       procedure components_vector4
       procedure components_vector8
    end interface components
+   
+   interface component
+      procedure component_vector4
+      procedure component_vector8
+   end interface component
      
 contains
 
@@ -246,6 +268,38 @@ contains
       real*8 :: s(3)
       s = (/v%x,v%y,v%z/)
    end function components_vector8
+   
+   function component_vector4(v,index) result(s)
+      type(vector4),intent(in) :: v
+      integer*4,intent(in):: index
+      real*4 :: s
+      select case(index)
+      case(1)
+         s = v%x
+      case(2)
+         s = v%y
+      case(3)
+         s = v%z
+      case default
+         s = 0
+      end select
+   end function component_vector4
+   
+   function component_vector8(v,index) result(s)
+      type(vector8),intent(in) :: v
+      integer*4,intent(in):: index
+      real*8 :: s
+      select case(index)
+      case(1)
+         s = v%x
+      case(2)
+         s = v%y
+      case(3)
+         s = v%z
+      case default
+         s = 0
+      end select
+   end function component_vector8
    
   subroutine getcomponents_vector4(s,v)
       class(vector4),intent(in) :: v
@@ -360,7 +414,11 @@ contains
       type(vector4) :: w
       real*4 :: n
       n = this%norm()
-      w = this/n
+      if (n<=epsilon(1.0)) then
+         w = this*0
+      else
+         w = this/n
+      end if
    end function unit_vector4
    
    pure function unit_vector8(this) result(w)
@@ -368,21 +426,37 @@ contains
       type(vector8) :: w
       real*8 :: n
       n = this%norm()
-      w = this/n
+      if (n<=epsilon(1.0_8)) then
+         w = this*0
+      else
+         w = this/n
+      end if
    end function unit_vector8
    
    pure function unit_array4(v) result(w)
       real*4,intent(in) :: v(:)
       real*4,allocatable :: w(:)
+      real*4 :: n
       allocate(w(size(v)))
-      w = v/norm(v)
+      n = norm(v)
+      if (n<=epsilon(1.0)) then
+         w = v*0
+      else
+         w = v/n
+      end if
    end function unit_array4
    
    pure function unit_array8(v) result(w)
       real*8,intent(in) :: v(:)
       real*8,allocatable :: w(:)
+      real*8 :: n
       allocate(w(size(v)))
-      w = v/norm(v)
+      n = norm(v)
+      if (n<=epsilon(1.0_8)) then
+         w = v*0
+      else
+         w = v/n
+      end if
    end function unit_array8
    
    pure function add_vectors4(u,v) result(w)
@@ -624,6 +698,62 @@ contains
       real*8 :: w
       w = sum(u*v)
    end function scalar_product_array8
+   
+   function scalar_product_a4v4(u,v) result(w)
+      real*4,intent(in)          :: u(3)
+      class(vector4),intent(in)  :: v
+      real*4 :: w
+      w = u.dot.components(v)
+   end function scalar_product_a4v4
+   
+   function scalar_product_v4a4(u,v) result(w)
+      class(vector4),intent(in)  :: u
+      real*4,intent(in)          :: v(3)
+      real*4 :: w
+      w = components(u).dot.v
+   end function scalar_product_v4a4
+   
+   function scalar_product_a8v8(u,v) result(w)
+      real*8,intent(in)          :: u(3)
+      class(vector8),intent(in)  :: v
+      real*8 :: w
+      w = u.dot.components(v)
+   end function scalar_product_a8v8
+   
+   function scalar_product_v8a8(u,v) result(w)
+      class(vector8),intent(in)  :: u
+      real*8,intent(in)          :: v(3)
+      real*8 :: w
+      w = components(u).dot.v
+   end function scalar_product_v8a8
+   
+   function cross_product_a4v4(u,v) result(w)
+      real*4,intent(in)          :: u(3)
+      class(vector4),intent(in)  :: v
+      real*4 :: w(3)
+      w = u.cross.components(v)
+   end function cross_product_a4v4
+   
+   function cross_product_v4a4(u,v) result(w)
+      class(vector4),intent(in)  :: u
+      real*4,intent(in)          :: v(3)
+      real*4 :: w(3)
+      w = components(u).cross.v
+   end function cross_product_v4a4
+   
+   function cross_product_a8v8(u,v) result(w)
+      real*8,intent(in)          :: u(3)
+      class(vector8),intent(in)  :: v
+      real*8 :: w(3)
+      w = u.cross.components(v)
+   end function cross_product_a8v8
+   
+   function cross_product_v8a8(u,v) result(w)
+      class(vector8),intent(in)  :: u
+      real*8,intent(in)          :: v(3)
+      real*8 :: w(3)
+      w = components(u).cross.v
+   end function cross_product_v8a8
    
    pure function cross_product_vector4(u,v) result(w)
       class(vector4),intent(in) :: u,v

@@ -3,6 +3,9 @@
 module module_global
 
    use shared_module_core
+   use shared_module_constants
+   use shared_module_vectors
+   use shared_module_maths
 
    public
 
@@ -22,198 +25,101 @@ module module_global
       integer*4   :: n_subvolumes_max = 10000                ! use factors of 10 for readable galaxy indices
       integer*4   :: n_galaxies_per_tile_max = int(1e8,4)    ! use factors of 10 for readable galaxy indices
       integer*4   :: n_galaxies_sky_max = int(1e9,4)
+      real*4      :: group_diameter_max = 0.25               ! [box side length] maximum allow group diameter
    end type type_limit
-   
-   type(type_limit),protected   :: limit
-   
-   ! selection types
-   integer*4,parameter  :: return_position_range = 0
-   integer*4,parameter  :: select_by_pos = 1
-   integer*4,parameter  :: select_by_sam = 2
-   integer*4,parameter  :: select_by_pos_and_sam = 3
-   integer*4,parameter  :: select_by_all = 4
-   
-   ! 90-degree rotation matrices
-   real*4,protected  :: rot(3,3,-6:6)
-   
-   ! default values for type_para
-   integer*4,private,parameter      :: i4 = -huge(0_4)
-   real*4,private,parameter         :: r4 = -huge(0.0_4)
-   character(1),private,parameter   :: c1 = ' '
 
-   type type_para
+   type type_snapshot
 
-      ! name of mock survey
-      character(len=255)   :: survey = c1
-      
-      ! paths & file names
-      character(len=255)   :: path_output = c1
-      character(len=255)   :: path_input = c1
-      character(len=255)   :: filename_sky = c1
-   
-      ! simulation box
-      real*4               :: box_side = r4     ! [length unit of simulation] box side length
-      real*4               :: length_unit = r4  ! [m] simulation length unit expressed in SI unit
-      integer*4            :: snapshot_min = i4
-      integer*4            :: snapshot_max = i4
-      integer*4            :: subvolume_min = i4
-      integer*4            :: subvolume_max = i4
-   
-      ! cosmology
-      real*4               :: h = r4
-      real*4               :: omega_l = r4
-      real*4               :: omega_m = r4
-      real*4               :: omega_b = r4
-      
-      ! distance range
-      real*4               :: dc_min = r4 ! [length unit of simulation]
-      real*4               :: dc_max = r4 ! [length unit of simulation]
-      
-      ! fov
-      real*4               :: ra_min = r4    ! [rad]
-      real*4               :: ra_max = r4    ! [rad]
-      real*4               :: dec_min = r4   ! [rad]
-      real*4               :: dec_max = r4   ! [rad]
-      
-      ! mapping of SAM coordinates onto survey coordinates
-      real*4               :: zaxis_ra = r4  ! [rad]
-      real*4               :: zaxis_dec = r4 ! [rad]
-      real*4               :: xy_angle = r4  ! [rad]
+      real*4      :: redshift
+      real*4      :: dmin           ! [box side length] minimum comoving distance at which galaxies are drawn from this snapshot
+      real*4      :: dmax           ! [box side length] maximum comoving distance at which galaxies are drawn from this snapshot
+      integer*4   :: n_tiles        ! Number of tiles this snapshot has been considered for, irrespective of whether a galaxy was selected
 
-      ! sky parameters
-      integer*4            :: seed = i4  ! seed of random number generator (integer >=1)
-      integer*4            :: translate = i4
-      integer*4            :: rotate = i4
-      integer*4            :: invert = i4
-      
-      ! observer velocity relative to CMB
-      real*4               :: velocity_ra = r4     ! [rad]
-      real*4               :: velocity_dec = r4    ! [rad]
-      real*4               :: velocity_norm = r4   ! [km/s] peculiar velocity of observer with respect to Hubble flow
-      
-      ! advanced options
-      real*4               :: search_angle = r4         ! [rad] minimal angular separation of points on faces
-      real*4               :: volume_search_level = r4
-      
-      ! galaxy options
-      integer*4            :: make_groups = i4
-      character(len=255)   :: options = c1
-      
-      ! I/O options
-      integer*4            :: merge_output = i4
-      integer*4            :: keep_binaries = i4
-      integer*4            :: keep_log = i4
-      
-      ! derived parameters, not directly specified by the user (no default needed)
-      real*4               :: velocity_car(3)   ! [km/s] velocity of observer cartesian survey-coordinates
-      real*4               :: sky_rotation(3,3) ! rotation matrix to move the (x,y,z)-sky axis onto the central (RA,dec)-sky
-      
-   end type type_para
+   end type type_snapshot
    
-   type type_pos ! spherical coordinates
+   type type_spherical ! spherical coordinates
    
-      real*4   :: dc    ! [simulation units/box lengths] comoving distance from observer
-      real*4   :: ra    ! [rad/deg] right ascension
-      real*4   :: dec   ! [rad/deg] declination
+      real*4   :: dc = 0.0    ! [simulation units/box lengths] comoving distance from observer
+      real*4   :: ra = 0.0    ! [rad/deg] right ascension
+      real*4   :: dec = 0.0   ! [rad/deg] declination
    
-   end type type_pos
+   end type type_spherical
    
-   type,extends(type_pos) :: type_base
-
-      integer*4   :: tile           ! unique identifier of tile in mock sky
-      integer*8   :: galaxyid       ! unique galaxy id in mock sky (-1 for groups)
-      integer*8   :: groupid        ! unique group id in the mock sky (-1 for isolated galaxies)
-      integer*4   :: group_ntot     ! total number of members in group
-      integer*4   :: group_flag     ! group flag (0 if group unclipped, >0 if clipped by survey edge (+1), snapshot limit (+2), box limit (+4))
-      
-   end type type_base
-   
-   type type_range
+   type type_fov
    
       real*4   :: dc(2)    ! [simulation units/box lengths] range of comoving distance from observer
       real*4   :: ra(2)    ! [deg/rad] range of right ascension
       real*4   :: dec(2)   ! [deg/rad] range of declination
       
-   end type type_range
+   end type type_fov
+   
+   type type_index
+      
+      integer*8   :: galaxy = 0_8   ! unique galaxy index in mock sky (for groups: central galaxy or -1 if central not selected)
+      integer*8   :: group = 0_8    ! unique group id in the mock sky (-1 for isolated galaxies)
+      integer*4   :: tile = 0       ! tile index
+      integer*4   :: shell = 0      ! shell index
+      
+   end type type_index
+   
+   type type_base
+   
+      type(type_spherical) :: spherical = type_spherical()  ! spherical coordinates (dc,ra,dec) [simulation length units, rad, rad]
+      type(vector4)        :: cartesian = vector4()         ! cartesian coordinates (x,y,z) [simulation length units]
+      type(type_index)     :: index = type_index()          ! various indices  
+      
+   end type type_base
+   
+   type type_transformation
+      
+      real*4      :: translation(3) = (/0.0,0.0,0.0/) ! [box side length] translation vector [0...1]
+      real*4      :: rotation(3,3)  = const%identity3 ! proper rotation matrix of tile/shell
+      logical     :: inverted       = .false.         ! logical flag for axis inversion (0 = no inversion, 1 = all three axes inverted)
+      
+   end type type_transformation
 
    type type_tile
    
+      integer*4   :: shell          ! shell index
       integer*4   :: ix(3)          ! integer position, where ix=(0,0,0) is the central box with the observer in the middle
-      real*4      :: dmin           ! minimum distance to observer in units of box side-length
-      real*4      :: dmax           ! maximum distance ...
-      integer*4   :: rotation       ! 1...6, describing the type of proper 90-rotation, 1 being the identity; if negative with inversion
-      real*4      :: Rvector(3,3)   ! matrix of full rotation = 90 tiling rotation, followed by sky rotation
-      real*4      :: Rpseudo(3,3)   ! matrix of full rotation = 90 tiling rotation without inversion, followed by sky rotation
-      real*4      :: translation(3) ! [units of side-length] translation vector [0...1]
-   
+      real*4      :: dmin           ! [box side length] minimum comoving distance to observer
+      real*4      :: dmax           ! [box side length] maximum comoving distance to observer
+      type(type_transformation)  :: transformation
+      
    end type type_tile
-
-   type type_snapshot
-
-      real*4      :: redshift
-      real*4      :: dmin           ! [units of side-length] minimum comoving distance at which galaxies are drawn from this redshift
-      real*4      :: dmax           ! [units of side-length] maximum ...
-      integer*4   :: n_tiles        ! Number of tiles this snapshot has been considered for, irrespective of whether a galaxy was selected
-
-   end type type_snapshot
    
-   type type_skystats
+   type type_shell
    
-      integer*4   :: n_galaxies = 0    ! number of galaxies in mock sky (or some part thereof)
-      integer*4   :: n_distinct = 0    ! number of distinct SAM galaxies in mock sky (or some part thereof)
-      integer*4   :: n_replica_max = 0 ! maximum number of replications of the same SAM galaxy
-      integer*4   :: n_groups = 0      ! number of groups
+      real*4      :: dmin        ! [box side length] minimum comoving distance to observer
+      real*4      :: dmax        ! [box side length] maximum comoving distance to observer
+      type(type_transformation)  :: transformation
+      
+   end type type_shell
    
-   end type type_skystats
-   
-   type(type_para)                     :: para
+   type(type_limit),parameter          :: limit = type_limit()
    type(type_tile),allocatable         :: tile(:)
+   type(type_shell),allocatable        :: shell(:)
    type(type_snapshot),allocatable     :: snapshot(:)
+   
+   interface car2sph
+
+      procedure car2sph_compact
+   
+   end interface car2sph
+
    
 contains
 
-   subroutine initialize_global_variables
+   subroutine car2sph_compact(car,sph)
    
       implicit none
-      integer*4 :: i
-      
-      rot(:,:,0) = 0
-      
-      ! proper rotations
-      rot(:,:,1) = reshape((/+1,+0,+0,+0,+1,+0,+0,+0,+1/),(/3,3/))   ! identity
-      rot(:,:,2) = reshape((/-1,+0,+0,+0,+0,+1,+0,+1,+0/),(/3,3/))   ! invert x-axis, while permuting y and z
-      rot(:,:,3) = reshape((/+0,+0,+1,+0,-1,+0,+1,+0,+0/),(/3,3/))   ! invert y-axis, while permuting z and x
-      rot(:,:,4) = reshape((/+0,+1,+0,+1,+0,+0,+0,+0,-1/),(/3,3/))   ! invert z-axis, while permuting x and y
-      rot(:,:,5) = reshape((/+0,+1,+0,+0,+0,+1,+1,+0,+0/),(/3,3/))   ! permute (x,y,z) -> (y,z,x)
-      rot(:,:,6) = reshape((/+0,+0,+1,+1,+0,+0,+0,+1,+0/),(/3,3/))   ! permute (x,y,z) -> (z,x,y)
-      
-      ! improper rotations (with axis flip)
-      do i = 1,6
-         rot(:,:,-i) = -rot(:,:,i)
-      end do
-      
-   end subroutine initialize_global_variables
+      type(vector4),intent(in)         :: car
+      type(type_spherical),intent(out) :: sph
+      real*4                           :: x(3),radius,longitude,lattitude
+      x = car
+      call car2sph(x,radius,longitude,lattitude,astro=.true.)
+      sph = type_spherical(dc=radius,ra=longitude,dec=lattitude)
    
-   integer*4 function selection_type(pos,sam,sky,range,selected) result(sel)
-
-      implicit none
-      class(*),optional :: pos,sam,sky,range,selected
-      integer*4         :: q
-   
-      q = log2int(present(pos))+2*log2int(present(sam))+4*log2int(present(sky))+ &
-          & 8*log2int(present(range))+16*log2int(present(selected))
-   
-      select case(q)
-      case(0+0+0+8+00); sel = return_position_range
-      case(1+0+0+0+16); sel = select_by_pos
-      case(0+2+0+0+16); sel = select_by_sam
-      case(1+2+0+0+16); sel = select_by_pos_and_sam
-      case(1+2+4+0+16); sel = select_by_all
-      case default
-         write(*,*) q,present(selected)
-         call deverror('unknown selection type')
-      end select
-
-   end function selection_type
+   end subroutine car2sph_compact
 
 end module module_global

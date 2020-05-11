@@ -27,32 +27,13 @@ use module_global
 use module_parameters
 use module_conversion
 use module_user_routines
+use module_selection_tools
 
-public   :: selection_function
-public   :: assign_selection_function
-   
 private
 
-procedure(selection_all),pointer,protected :: selection_function => NULL()
+public   :: assign_selection_function
 
 contains
-
-! Dummy selection function that selects all galaxies.
-! Do not remove or edit this function, as it is used to declare the procedure pointer selection_function.
-
-subroutine selection_all(pos,sam,sky,range,selected)
-
-   implicit none
-   type(type_pos),intent(in),optional           :: pos
-   type(type_sam),intent(in),optional           :: sam
-   class(type_sky_galaxy),intent(in),optional   :: sky
-   type(type_range),intent(inout),optional      :: range
-   logical,intent(inout),optional               :: selected
-   
-   call nil(pos,sam,sky,range,selected) ! avoids compiler warnings for unused arguments
-   
-end subroutine
-
 
 ! **********************************************************************************************************************************
 ! LINKING SURVEY NAMES TO SELECTION FUNCTIONS
@@ -64,7 +45,6 @@ end subroutine
 subroutine assign_selection_function
 
    select case (trim(para%survey))
-      case('all');                  selection_function => selection_all
       case('example');              selection_function => selection_example
       case('gama');                 selection_function => selection_gama
       case('devils');               selection_function => selection_devils
@@ -74,7 +54,7 @@ subroutine assign_selection_function
       case('wallaby-micro');        selection_function => selection_wallaby_micro
       case('wallaby-medi');         selection_function => selection_wallaby_medi
    case default
-      call error('unknown survey name: ',trim(para%survey))
+      call selection_function_unknown
    end select   
 
 end subroutine assign_selection_function
@@ -90,10 +70,10 @@ subroutine selection_example(pos,sam,sky,range,selected)
 
    ! do not edit
    implicit none
-   type(type_pos),intent(in),optional           :: pos      ! has components dc [length unit of parameterfile], ra [deg], dec [deg] 
+   type(type_spherical),intent(in),optional     :: pos      ! has components dc [length unit of parameterfile], ra [deg], dec [deg]
    type(type_sam),intent(in),optional           :: sam      ! has components as defined in the "module_user_routines_..."
-   class(type_sky_galaxy),intent(in),optional   :: sky      ! has components as defined in the "module_user_routines_..."
-   type(type_range),intent(inout),optional      :: range    ! has components dc(2) [length unit], ra(2) [deg], dec(2) [deg]
+   type(type_sky_galaxy),intent(in),optional    :: sky      ! has components as defined in the "module_user_routines_..."
+   type(type_fov),intent(inout),optional        :: range    ! has components dc(2) [length unit], ra(2) [deg], dec(2) [deg]
    logical,intent(inout),optional               :: selected
    ! end do not edit
    
@@ -102,7 +82,7 @@ subroutine selection_example(pos,sam,sky,range,selected)
    
       ! here enter the individual maximal ranges of comoving distance, right ascension and declination covered by the survey,
       ! as restrictive as possible; these ranges are mandatory
-      range%dc = (/0.0,200.0/)      ! [simulation length units, here Mpc/h] comoving distance range
+      range%dc = (/0.0,300.0/)      ! [simulation length units, here Mpc/h] comoving distance range
       range%ra = (/150.0,210.0/)    ! [deg] range of right ascensions, bound to 0 to 360
       range%dec = (/-10.0,10.0/)    ! [deg] range of declinations, bound to -90 to +90
       
@@ -122,14 +102,14 @@ subroutine selection_example(pos,sam,sky,range,selected)
    
       ! here add additional, maximal restrictions that require both the position (pos) *and* SAM-properties (sam);
       ! if no such restrictions exist, leave this clause empty
-      selected = (sam%mstars_disk+sam%mstars_bulge)/pos%dc**2>8e3 ! rough preselection, only for acceleration
+      selected = (sam%mstars_disk+sam%mstars_bulge)/pos%dc**2>1e4 ! rough preselection, only for acceleration
       
    case (select_by_all)
    
       ! here add additional, maximal restrictions that require apparent sky properties (sky), as defined in module_user_routines,
       ! possibly combined with position and SAM properties;
       ! if no such restrictions exist, leave this clause empty
-      selected = sky%mag<19.17 .and. sky%zobs<0.1 ! select by apparent magnitude and redshift
+      selected = sky%mag<19.245 .and. sky%zobs<0.1 ! select by apparent magnitude and redshift
       
    end select
    
@@ -145,10 +125,10 @@ end subroutine
 subroutine selection_gama(pos,sam,sky,range,selected)
 
    implicit none
-   type(type_pos),intent(in),optional           :: pos
+   type(type_spherical),intent(in),optional     :: pos
    type(type_sam),intent(in),optional           :: sam
-   class(type_sky_galaxy),intent(in),optional   :: sky
-   type(type_range),intent(inout),optional      :: range
+   type(type_sky_galaxy),intent(in),optional    :: sky
+   type(type_fov),intent(inout),optional        :: range
    logical,intent(inout),optional               :: selected
    
    ! computation variables
@@ -197,10 +177,10 @@ end subroutine
 subroutine selection_devils(pos,sam,sky,range,selected)
 
    implicit none
-   type(type_pos),intent(in),optional           :: pos
+   type(type_spherical),intent(in),optional     :: pos
    type(type_sam),intent(in),optional           :: sam
-   class(type_sky_galaxy),intent(in),optional   :: sky
-   type(type_range),intent(inout),optional      :: range
+   type(type_sky_galaxy),intent(in),optional    :: sky
+   type(type_fov),intent(inout),optional        :: range
    logical,intent(inout),optional               :: selected
    
    ! computation variables
@@ -236,10 +216,10 @@ end subroutine
 subroutine selection_waves_g23(pos,sam,sky,range,selected)
 
    implicit none
-   type(type_pos),intent(in),optional           :: pos
+   type(type_spherical),intent(in),optional     :: pos
    type(type_sam),intent(in),optional           :: sam
-   class(type_sky_galaxy),intent(in),optional   :: sky
-   type(type_range),intent(inout),optional      :: range
+   type(type_sky_galaxy),intent(in),optional    :: sky
+   type(type_fov),intent(inout),optional        :: range
    logical,intent(inout),optional               :: selected
    
    ! computation variables
@@ -272,10 +252,10 @@ end subroutine
 subroutine selection_deep_optical(pos,sam,sky,range,selected)
 
    implicit none
-   type(type_pos),intent(in),optional           :: pos
+   type(type_spherical),intent(in),optional     :: pos
    type(type_sam),intent(in),optional           :: sam
-   class(type_sky_galaxy),intent(in),optional   :: sky
-   type(type_range),intent(inout),optional      :: range
+   type(type_sky_galaxy),intent(in),optional    :: sky
+   type(type_fov),intent(inout),optional        :: range
    logical,intent(inout),optional               :: selected
    
    ! computation variables
@@ -304,10 +284,10 @@ end subroutine
 subroutine selection_deep_optical_narrow(pos,sam,sky,range,selected)
 
    implicit none
-   type(type_pos),intent(in),optional           :: pos
+   type(type_spherical),intent(in),optional     :: pos
    type(type_sam),intent(in),optional           :: sam
-   class(type_sky_galaxy),intent(in),optional   :: sky
-   type(type_range),intent(inout),optional      :: range
+   type(type_sky_galaxy),intent(in),optional    :: sky
+   type(type_fov),intent(inout),optional        :: range
    logical,intent(inout),optional               :: selected
    
    ! computation variables
@@ -336,10 +316,10 @@ end subroutine
 subroutine selection_wallaby_micro(pos,sam,sky,range,selected)
 
    implicit none
-   type(type_pos),intent(in),optional           :: pos
+   type(type_spherical),intent(in),optional     :: pos
    type(type_sam),intent(in),optional           :: sam
-   class(type_sky_galaxy),intent(in),optional   :: sky
-   type(type_range),intent(inout),optional      :: range
+   type(type_sky_galaxy),intent(in),optional    :: sky
+   type(type_fov),intent(inout),optional        :: range
    logical,intent(inout),optional               :: selected
    
    call selection_wallaby(dcmin=0.0,dcmax=60.0,pos=pos,sam=sam,sky=sky,range=range,selected=selected)
@@ -349,10 +329,10 @@ end subroutine
 subroutine selection_wallaby_medi(pos,sam,sky,range,selected)
 
    implicit none
-   type(type_pos),intent(in),optional           :: pos
+   type(type_spherical),intent(in),optional     :: pos
    type(type_sam),intent(in),optional           :: sam
-   class(type_sky_galaxy),intent(in),optional   :: sky
-   type(type_range),intent(inout),optional      :: range
+   type(type_sky_galaxy),intent(in),optional    :: sky
+   type(type_fov),intent(inout),optional        :: range
    logical,intent(inout),optional               :: selected
    
    call selection_wallaby(dcmin=60.0,dcmax=1000.0,pos=pos,sam=sam,sky=sky,range=range,selected=selected)
@@ -364,10 +344,10 @@ subroutine selection_wallaby(dcmin,dcmax,pos,sam,sky,range,selected)
    implicit none
    real*4,intent(in)                            :: dcmin ! [sim length unit = Mpc/h] minimum comoving distance
    real*4,intent(in)                            :: dcmax ! [sim length unit = Mpc/h] maximum comoving distance
-   type(type_pos),intent(in),optional           :: pos
+   type(type_spherical),intent(in),optional     :: pos
    type(type_sam),intent(in),optional           :: sam
-   class(type_sky_galaxy),intent(in),optional   :: sky
-   type(type_range),intent(inout),optional      :: range
+   type(type_sky_galaxy),intent(in),optional    :: sky
+   type(type_fov),intent(inout),optional        :: range
    logical,intent(inout),optional               :: selected
    
    ! wallaby survey parameters

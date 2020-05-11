@@ -6,16 +6,24 @@ module module_tiling
    use shared_module_vectors
    use shared_module_constants
    use module_global
+   use module_parameters
    use module_user_selection
+   use module_selection_tools
    
    public   :: make_tiling
    public   :: is_in_fov
+   public   :: apply_tile_symmetry
+   public   :: map_tile_onto_sky
+   public   :: sph_deg_l
    
    private
-   integer*4,allocatable   :: intersection(:,:,:)   ! ==  0 : not checked
+   integer*4,allocatable   :: intersection(:,:,:,:) ! ==  0 : not checked
                                                     ! == -1 : does not intersect
                                                     ! >= +1 : id of intersecting tile
-   integer*4               :: imax,ntile,counter
+   integer*4               :: imax
+   integer*4               :: ntiles
+   integer*4               :: nchecks
+   type(type_fov)          :: fov   ! survey range in [box side length], [rad]
    
 contains
 
@@ -23,6 +31,7 @@ subroutine make_tiling
 
    implicit none
    integer*4   :: starting_point(3)
+   integer*4   :: ishell
    
    call tic
    call out('MAKE 3D TILING')
@@ -30,142 +39,162 @@ subroutine make_tiling
    call set_seed(para%seed)
    call get_position_range
    
-   ntile = 0
-   counter = 0
-   imax = ceiling(para%dc_max/para%box_side)
+   imax = ceiling(fov%dc(2))
    if (abs(imax)>limit%n_tiles_max) call error('maximum comoving distance too large for this box side length')
-   allocate(intersection(-imax:imax,-imax:imax,-imax:imax))
-   intersection = 0
-   ntile = 0
-   call make_starting_point(starting_point)
-   call check_tile(starting_point,0)
-   call make_tile_list
    
+   ! make shells
+   call make_shell_list
+   call out('Number of shells = ',size(shell))
+   
+   ! make tiles
+   ntiles = 0
+   nchecks = 0
+   allocate(intersection(size(shell),-imax:imax,-imax:imax,-imax:imax))
+   intersection = 0
+   do ishell = 1,size(shell)
+      call make_starting_point(ishell,starting_point)
+      call check_tile(ishell,starting_point,0)
+   end do
+   call make_tile_list
    call out('Number of tiles = ',size(tile))
-   call out('Number of points checked = ',counter)
+   call out('Number of points checked = ',nchecks)
    
    call toc
-
+   
 end subroutine make_tiling
 
-logical function is_in_fov(pos)
+logical function is_in_fov(sph)
 
    implicit none
    
-   type(type_pos),intent(in)  :: pos
+   type(type_spherical),intent(in)  :: sph   ! spherical coordinates in rad and box side lengths
    
-   is_in_fov = (pos%dc>=para%dc_min).and.(pos%dc<=para%dc_max).and. &
-             & (pos%ra>=para%ra_min).and.(pos%ra<=para%ra_max).and. &
-             & (pos%dec>=para%dec_min).and.(pos%dec<=para%dec_max)
+   is_in_fov = (sph%dc>=fov%dc(1)).and.(sph%dc<=fov%dc(2)).and. &
+             & (sph%ra>=fov%ra(1)).and.(sph%ra<=fov%ra(2)).and. &
+             & (sph%dec>=fov%dec(1)).and.(sph%dec<=fov%dec(2))
              
 end function is_in_fov
 
 subroutine get_position_range
 
    implicit none
-   type(type_range)  :: range
    real*4,parameter  :: x = huge(0.0_4)
    
    ! set default values
-   range%dc = x
-   range%ra = x
-   range%dec = x
+   fov%dc = x
+   fov%ra = x
+   fov%dec = x
    
    ! extract ranges from selection function
-   call selection_function(range=range)
+   call selection_function(range=fov)
    
    ! check initialization
-   if (any(range%dc==x)) call error('range of comoving distances (range%dc) not provided in selection function')
-   if (any(range%ra==x)) call error('range of right ascension (range%ra) not provided in selection function')
-   if (any(range%dec==x)) call error('range of declination (range%dec) not provided in selection function')
-   
-   ! cast into parameters
-   para%dc_min = range%dc(1)
-   para%dc_max = range%dc(2)
-   para%ra_min = range%ra(1)
-   para%ra_max = range%ra(2)
-   para%dec_min = range%dec(1)
-   para%dec_max = range%dec(2)
+   if (any(fov%dc==x)) call error('range of comoving distances (range%dc) not provided in selection function')
+   if (any(fov%ra==x)) call error('range of right ascension (range%ra) not provided in selection function')
+   if (any(fov%dec==x)) call error('range of declination (range%dec) not provided in selection function')
    
    ! check values
-   if (para%dc_min<0.0) call error('dc_min must be >=0')
-   if (para%dc_max<=0.0) call error('dc_max must be >0')
-   if (para%dc_max<=para%dc_min) call error('dc_min must be smaller than dc_max')
+   if (fov%dc(1)<0.0) call error('dc_min must be >=0')
+   if (fov%dc(2)<=0.0) call error('dc_max must be >0')
+   if (fov%dc(2)<=fov%dc(1)) call error('dc_min must be smaller than dc_max')
    
-   if (para%ra_min<0.0) call error('ra_min must be >=0')
-   if (para%ra_max>360.0) call error('ra_max must be <=360')
-   if (para%ra_min>=para%ra_max) call error('ra_max must be larger than ra_min')
+   if (fov%ra(1)<0.0) call error('ra_min must be >=0')
+   if (fov%ra(2)>360.0) call error('ra_max must be <=360')
+   if (fov%ra(2)<=fov%ra(1)) call error('ra_min must be smaller than ra_max')
    
-   if (para%dec_min<-90.0) call error('ra_min must be >=-90')
-   if (para%dec_max>+90.0) call error('ra_max must be <=90')
-   if (para%dec_min>=para%dec_max) call error('dec_max must be larger than dec_min')
+   if (fov%dec(1)<-90.0) call error('dec_min must be >=-90')
+   if (fov%dec(2)>+90.0) call error('dec_max must be <=90')
+   if (fov%dec(2)<=fov%dec(1)) call error('dec_min must be smaller than dec_max')
    
    ! convert degrees to radian
-   para%ra_min = para%ra_min*unit%degree
-   para%ra_max = para%ra_max*unit%degree
-   para%dec_min = para%dec_min*unit%degree
-   para%dec_max = para%dec_max*unit%degree
+   fov%ra = fov%ra*unit%degree
+   fov%dec = fov%dec*unit%degree
+   
+   ! convert simulation units to box side lengths
+   fov%dc = fov%dc/para%box_side
 
 end subroutine get_position_range
 
-subroutine make_starting_point(ix)
+logical function is_tile_in_shell(ishell,ix)
 
    implicit none
+   integer*4,intent(in) :: ishell
+   integer*4,intent(in) :: ix(3)
+   real*4               :: xmin(3),rmin
+   real*4               :: xmax(3),rmax
+   integer*4            :: d
+   
+   do d = 1,3
+      xmin(d) = max(0.0,real(abs(ix(d)),4)-0.5)
+      xmax(d) = real(abs(ix(d)),4)+0.5
+   end do
+   rmin = norm(xmin)
+   rmax = norm(xmax)
+   is_tile_in_shell = (rmin<shell(ishell)%dmax).and.(rmax>shell(ishell)%dmin)
+            
+end function is_tile_in_shell
+
+subroutine make_starting_point(ishell,ix)
+
+   implicit none
+   integer*4,intent(in)    :: ishell
    integer*4,intent(out)   :: ix(3)
    integer*4               :: i,j,k
    
    ix = (/0,0,0/)
-   if (is_tile_in_survey(ix,.false.).and.is_tile_in_survey(ix,.true.)) return
+   if (is_tile_in_shell(ishell,ix).and.is_tile_in_survey(ishell,ix,.false.).and.is_tile_in_survey(ishell,ix,.true.)) return
    
-   do i = -imax,imax
+   do i = -imax,imax !xxx inside out might be faster
       do j = -imax,imax
          do k = -imax,imax
             ix = (/i,j,k/)
-            if (is_tile_in_survey(ix,.false.).and.is_tile_in_survey(ix,.true.)) return
+            if (is_tile_in_shell(ishell,ix).and.is_tile_in_survey(ishell,ix,.false.).and.is_tile_in_survey(ishell,ix,.true.)) return
          end do
       end do
    end do
       
-   call error('maximum comoving distance too large for this box side length')
+   call error('no object passes position selection criterion')
    
 end subroutine make_starting_point
 
-recursive subroutine check_tile(ix,nrecursion)
+recursive subroutine check_tile(ishell,ix,nrecursion)
 
    implicit none
-   integer,intent(in) :: ix(3),nrecursion
+   integer*4,intent(in) :: ishell
+   integer*4,intent(in) :: ix(3)
+   integer*4,intent(in) :: nrecursion
    
    if (nrecursion>1e4) call error('too many recursions in tiling; please restrict the ranges of dc, ra, dec in selection_function')
    
    if (maxval(abs(ix))>imax) return
-   if (intersection(ix(1),ix(2),ix(3)).ne.0) return
+   if (intersection(ishell,ix(1),ix(2),ix(3)).ne.0) return
    
-   if (is_tile_in_survey(ix,.false.)) then
+   if (is_tile_in_survey(ishell,ix,.false.).and.is_tile_in_shell(ishell,ix)) then
       
-      ! tile intersects with survey volume specified by parameter file
+      ! tile intersects with global survey volume and shell
    
-      if (is_tile_in_survey(ix,.true.)) then
-         ! tile also intersects with survey volume specified by user file
-         ntile = ntile+1
-         if (ntile>limit%n_tiles_max) call error ('number of required tiles exceeds ',limit%n_tiles_max)
-         intersection(ix(1),ix(2),ix(3)) = ntile
+      if (is_tile_in_survey(ishell,ix,.true.)) then
+         ! tile also intersects with detailed survey volume
+         ntiles = ntiles+1
+         if (ntiles>limit%n_tiles_max) call error ('number of required tiles exceeds ',limit%n_tiles_max)
+         intersection(ishell,ix(1),ix(2),ix(3)) = ntiles
       else
          ! tile does not intersect with survey volume specified by user file
-         intersection(ix(1),ix(2),ix(3)) = -1
+         intersection(ishell,ix(1),ix(2),ix(3)) = -1
       end if
       
       ! check neighboring tiles
-      call check_tile(ix+(/+1,0,0/),nrecursion+1)
-      call check_tile(ix+(/-1,0,0/),nrecursion+1)
-      call check_tile(ix+(/0,+1,0/),nrecursion+1)
-      call check_tile(ix+(/0,-1,0/),nrecursion+1)
-      call check_tile(ix+(/0,0,+1/),nrecursion+1)
-      call check_tile(ix+(/0,0,-1/),nrecursion+1)
+      call check_tile(ishell,ix+(/+1,0,0/),nrecursion+1)
+      call check_tile(ishell,ix+(/-1,0,0/),nrecursion+1)
+      call check_tile(ishell,ix+(/0,+1,0/),nrecursion+1)
+      call check_tile(ishell,ix+(/0,-1,0/),nrecursion+1)
+      call check_tile(ishell,ix+(/0,0,+1/),nrecursion+1)
+      call check_tile(ishell,ix+(/0,0,-1/),nrecursion+1)
       
    else
    
       ! tile does not intersect with survey volume specified by parameter file
-      intersection(ix(1),ix(2),ix(3)) = -1
+      intersection(ishell,ix(1),ix(2),ix(3)) = -1
       
    end if
 
@@ -173,62 +202,174 @@ end subroutine check_tile
 
 subroutine make_tile_list
 
-   ! NB: random_number() uses a better prng than rand(), but depends on the system and fortran version
-   !     we therefore chose to use rand()
-
    implicit none
    real*4                     :: dmin,dmax
-   integer*4                  :: i,j,k,ntile,itile
+   integer*4                  :: i,j,k,itile,ishell
    
-   ntile = count(intersection>0)
-   if (ntile==0) call error('no galaxy passes the selection criterion.')
+   if (ntiles/=count(intersection>0)) call deverror('tile number mismatch 1')
+   if (ntiles/=maxval(intersection)) call deverror('tile number mismatch 2')
+   if (ntiles==0) call error('no galaxy passes the selection criterion')
    
-   allocate(tile(ntile))
-   do i = -imax,imax
-      do j = -imax,imax
-         do k = -imax,imax
-            if (intersection(i,j,k)>0) then
+   allocate(tile(ntiles))
+   
+   do ishell = 1,size(shell)
+   
+      do i = -imax,imax
+         do j = -imax,imax
+            do k = -imax,imax
+               if (intersection(ishell,i,j,k)>0) then
       
-               itile = intersection(i,j,k)
+                  itile = intersection(ishell,i,j,k)
          
-               ! position
-               tile(itile)%ix = (/i,j,k/)
+                  ! position
+                  tile(itile)%ix = (/i,j,k/)
       
-               ! distance range of tile
-               call get_distance_range_of_cube(tile(itile)%ix,dmin,dmax)
-               tile(itile)%dmin = max(para%dc_min/para%box_side,dmin)
-               tile(itile)%dmax = min(para%dc_max/para%box_side,dmax)
+                  ! distance range of tile
+                  call get_distance_range_of_cube(tile(itile)%ix,dmin,dmax)
+                  tile(itile)%dmin = max(fov%dc(1),dmin)
+                  tile(itile)%dmax = min(fov%dc(2),dmax)
                
-               ! choose random proper rotation
-               if (para%rotate==1) then
-                  !call random_number(rnd)
-                  tile(itile)%rotation = max(1,min(6,ceiling(rand()*6.0)))
-               else
-                  tile(itile)%rotation = 1
+                  ! shell index
+                  tile(itile)%shell = ishell
+               
+                  ! random transformation
+                  if (trim(para%randomisation)=='tiles') then
+                     call assign_random_transformation(tile(itile)%transformation,.true.)
+                     if ((para%fix_observer_position).and.(i==0.and.j==0.and.k==0)) tile(itile)%transformation%translation = 0.0
+                     if ((para%fix_observer_rotation).and.(i==0.and.j==0.and.k==0)) tile(itile)%transformation%rotation = 0.0
+                  end if
+               
                end if
-               tile(itile)%Rvector = matmul(para%sky_rotation,rot(:,:,tile(itile)%rotation))
-
-               ! choose random inversion
-               if (para%invert==1) then
-                  !call random_number(rnd)
-                  if (rand()<0.5) tile(itile)%rotation = -tile(itile)%rotation
-               end if
-               tile(itile)%Rpseudo = matmul(para%sky_rotation,rot(:,:,tile(itile)%rotation))
-
-               ! choose random translation
-               if (para%translate==1) then
-                  !call random_number(tile(itile)%translation)
-                  tile(itile)%translation = rand()
-               else
-                  tile(itile)%translation = (/0,0,0/)
-               end if
-      
-            end if
+            end do
          end do
       end do
    end do
 
 end subroutine make_tile_list
+
+subroutine make_shell_list
+
+   implicit none
+   integer*4         :: ishell,nshell
+   real*4            :: dr_first          ! thickness/radius of inner most shell
+   real*4            :: r
+   
+   if (trim(para%randomisation)=='shells') then
+      
+      if (fov%dc(1)<0.5) then
+         dr_first = 0.5
+      else
+         dr_first = 1.0
+      end if
+   
+      nshell = ceiling(fov%dc(2)-fov%dc(1)-dr_first)+1
+      
+      if (nshell<1) call error('distance range of selection function is too narrow')
+   
+      allocate(shell(nshell))
+      
+      r = fov%dc(1)
+   
+      do ishell = 1,nshell
+   
+         ! distance range of shell, interspaced by one box side length
+         shell(ishell)%dmin = r
+         if (ishell==1) then
+            shell(ishell)%dmax = shell(ishell)%dmin+dr_first
+         else
+            shell(ishell)%dmax = shell(ishell)%dmin+1.0
+         end if
+         r = shell(ishell)%dmax
+      
+         ! random transformation
+         call assign_random_transformation(shell(ishell)%transformation,.false.)
+      
+      end do
+      
+   else
+   
+      allocate(shell(1))
+      
+      ! distance range of shell
+      shell(1)%dmin = fov%dc(1)
+      shell(1)%dmax = fov%dc(2)
+      
+      if (trim(para%randomisation)=='single') call assign_random_transformation(shell(1)%transformation,.false.)
+   
+   end if
+   
+   if (shell(1)%dmin<0.5) then
+   
+      if (para%fix_observer_position) shell(1)%transformation%translation = para%observer_translation
+      if (para%fix_observer_rotation) shell(1)%transformation%rotation = para%observer_rotation
+      
+   end if
+      
+end subroutine make_shell_list
+
+subroutine assign_random_transformation(tr,discrete_rotation)
+
+   ! NB: random_number() uses a better prng than rand(), but depends on the system and fortran version
+   !     we therefore chose to use rand(), accessed with the option modern = .false.
+
+   implicit none
+   type(type_transformation),intent(inout)  :: tr
+   logical,intent(in) :: discrete_rotation
+   integer*4 :: k,d
+   logical,parameter :: modern = .true.
+   real*4   :: axis(3)
+   real*4   :: angle
+   real*4,parameter :: rxx(24) = real((/+1,+1,+1,+1,-1,-1,-1,-1,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0/),4)
+   real*4,parameter :: rxy(24) = real((/+0,+0,+0,+0,+0,+0,+0,+0,+1,-1,+0,+0,+1,-1,+0,+0,+1,-1,+0,+0,+1,-1,+0,+0/),4)
+   real*4,parameter :: rxz(24) = real((/+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+1,-1,+0,+0,-1,+1,+0,+0,-1,+1,+0,+0,+1,-1/),4)
+   real*4,parameter :: ryx(24) = real((/+0,+0,+0,+0,+0,+0,+0,+0,+1,+1,+1,+1,-1,-1,-1,-1,+0,+0,+0,+0,+0,+0,+0,+0/),4)
+   real*4,parameter :: ryy(24) = real((/+1,-1,+0,+0,+1,-1,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+1,-1,+0,+0,+1,-1/),4)
+   real*4,parameter :: ryz(24) = real((/+0,+0,-1,+1,+0,+0,+1,-1,+0,+0,+0,+0,+0,+0,+0,+0,+1,-1,+0,+0,-1,+1,+0,+0/),4)
+   real*4,parameter :: rzx(24) = real((/+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+1,+1,+1,+1,-1,-1,-1,-1/),4)
+   real*4,parameter :: rzy(24) = real((/+0,+0,+1,-1,+0,+0,+1,-1,+0,+0,+1,-1,+0,+0,+1,-1,+0,+0,+0,+0,+0,+0,+0,+0/),4)
+   real*4,parameter :: rzz(24) = real((/+1,-1,+0,+0,-1,+1,+0,+0,-1,+1,+0,+0,+1,-1,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0/),4)
+   integer*4,parameter :: yrotations(4) = (/1,5,19,23/)
+   
+   ! choose random proper rotation
+   if (para%rotate) then
+      if (discrete_rotation) then
+         if (devoption('yrotation')) then
+            k = yrotations(get_random_integer(1,4,modern=modern))
+         else
+            k = get_random_integer(1,24,modern=modern)
+         end if
+         tr%rotation = reshape((/rxx(k),rxy(k),rxz(k),ryx(k),ryy(k),ryz(k),rzx(k),rzy(k),rzz(k)/),(/3,3/))
+      else
+         if (devoption('yrotation')) then
+            axis = (/0.0,1.0,0.0/)
+         else
+            axis = get_random_unit_vector(modern=modern)
+         end if
+         angle = get_random_uniform_number(0.0,2*pi,modern=modern)
+         tr%rotation = rotation_matrix(axis,angle)
+      end if
+   else
+      tr%rotation = const%identity3
+   end if
+
+   ! choose random inversion
+   if (para%invert) then
+      tr%inverted = get_random_uniform_number(0.0,1.0,modern=modern)>0.5
+   else
+      tr%inverted = .false.
+   end if
+
+   ! choose random translation
+   if (para%translate) then
+      do d = 1,3
+         tr%translation(d) = get_random_uniform_number(0.0,1.0,modern=modern)
+      end do
+      if (devoption('xztranslation')) tr%translation(2) = 0.0
+   else
+      tr%translation = 0
+   end if
+   
+end subroutine assign_random_transformation
 
 subroutine get_distance_range_of_cube(ix,dmin,dmax)
 
@@ -298,7 +439,7 @@ function get_min_distance_to_square(p,e1,e2) result(dmin)
       dmin = norm(p-s1*e1/2-s2*e2/2)
       return
    else
-      call deverror('unknown erro in get_min_distance_to_square')
+      call deverror('unknown error in get_min_distance_to_square')
    end if
    
    ! code never gets here, this is just to avoid compiler warning of uninitialised variable
@@ -318,9 +459,10 @@ function get_min_distance_to_line(p,e) result(dmin)
    
 end function get_min_distance_to_line
 
-logical function is_tile_in_survey(ix,user)
+logical function is_tile_in_survey(ishell,ix,user)
 
    implicit none
+   integer*4,intent(in)    :: ishell
    integer*4,intent(in)    :: ix(3) ! [box side-length] tile center in tiling coordinates
    logical,intent(in)      :: user
    integer*4               :: n2D,n3D
@@ -328,10 +470,10 @@ logical function is_tile_in_survey(ix,user)
    integer*4               :: i,j,k
    integer*4,allocatable   :: index(:)
    
-   sx = matmul(para%sky_rotation,(/1.0,0.0,0.0/))*para%box_side
-   sy = matmul(para%sky_rotation,(/0.0,1.0,0.0/))*para%box_side
-   sz = matmul(para%sky_rotation,(/0.0,0.0,1.0/))*para%box_side
-   x  = matmul(para%sky_rotation,real(ix,4))*para%box_side
+   sx = matmul(shell(ishell)%transformation%rotation,(/1.0,0.0,0.0/))
+   sy = matmul(shell(ishell)%transformation%rotation,(/0.0,1.0,0.0/))
+   sz = matmul(shell(ishell)%transformation%rotation,(/0.0,0.0,1.0/))
+   x  = matmul(shell(ishell)%transformation%rotation,real(ix,4))
 
    d = max(0.5,sqrt(real(sum(ix**2),4))) ! [box side-length] approximate distance from origin to nearest tile face
    n2D = max(10,2*nint(0.5/(d*para%search_angle)))
@@ -373,42 +515,90 @@ end function is_tile_in_survey
 
 logical function is_point_in_survey(x,user)
 
-   ! Check if the point x lies inside the selected survey volume. If user = true, this is the survey volume
-   ! specified by the user function selection_function, otherwise it is the survey volume specified in the
-   ! parameter file.
-
    implicit none
-   real*4,intent(in)    :: x(3)     ! [simulation unit] position of point in tiling coordinates
+   real*4,intent(in)    :: x(3)     ! [box side length] position of point in tiling coordinates
    logical,intent(in)   :: user
-   real*4               :: ra,dec   ! [rad] sky coordinates
-   real*4               :: dc       ! [simulation unit] comoving distance
-   type(type_pos)       :: pos
+   type(vector4)        :: v
+   type(type_spherical) :: sph
    
-   counter = counter+1
+   nchecks = nchecks+1
    
-   call car2sph(x,dc,ra,dec,astro=.true.)
+   v = x
+   call car2sph(v,sph)
    
    if (user) then
    
-      pos%dc = dc
-      pos%ra = ra/unit%degree
-      pos%dec = dec/unit%degree
       is_point_in_survey = .true.
-      call selection_function(pos=pos,selected=is_point_in_survey)
-
+      call selection_function(pos=sph_deg_l(sph),selected=is_point_in_survey)
+      return
+      
    else
    
-      if (dc<=epsilon(dc)) then
-         is_point_in_survey = (para%dc_min<=0)
+      if (sph%dc<=epsilon(sph%dc)) then
+         is_point_in_survey = (fov%dc(1)<=0)
          return
       end if
-      pos%dc = dc
-      pos%ra = ra
-      pos%dec = dec
-      is_point_in_survey = is_in_fov(pos)
+      is_point_in_survey = is_in_fov(sph)
       
    end if
    
-end function is_point_in_survey       
+end function is_point_in_survey
+
+function apply_tile_symmetry(x,itile) result(y)
+
+   ! converts the internal tile symmetries to the normalised coordinates [0...1]^3
+
+   real*4,intent(in)    :: x(3)     ! [box side length] position in N-body box
+   integer*4,intent(in) :: itile    ! tile index
+   real*4               :: y(3)     ! [box side length] position in cartesian sky coordinates
+   integer*4            :: ishell   ! shell index
+   real*4               :: sgn      ! sign of axes transformations
+   
+   ishell = tile(itile)%shell
+   
+   ! apply translations of shell and tile (imposing periodic boundary conditions)
+   y = modulo(x+shell(ishell)%transformation%translation+tile(itile)%transformation%translation,1.0)
+   
+   ! apply inversion of shell and tile
+   sgn = (1-2*log2int(shell(ishell)%transformation%inverted))*(1-2*log2int(tile(itile)%transformation%inverted))
+   y = (y-0.5)*sgn+0.5
+   
+   ! apply *discrete* rotation of tile about the tile centre
+   y = matmul(tile(itile)%transformation%rotation,y-0.5)+0.5
+
+end function apply_tile_symmetry
+
+function map_tile_onto_sky(x,itile) result(y)
+
+   ! converts the normalised tile coordinates [0...1]^3 into sky coordinates in R^3
+
+   implicit none
+   real*4,intent(in)    :: x(3)     ! [box side length] position in N-body box
+   integer*4,intent(in) :: itile    ! tile index
+   real*4               :: y(3)     ! [box side length] position in cartesian sky coordinates
+   integer*4            :: ishell   ! shell index
+   
+   ishell = tile(itile)%shell
+   
+   ! translate nbody box to tile position
+   y = x+tile(itile)%ix-0.5
+   
+   ! shell rotation
+   y = matmul(shell(ishell)%transformation%rotation,y)
+   
+end function map_tile_onto_sky
+
+function sph_deg_l(sph) result(s)
+
+   ! converts rad to deg
+   ! and box side lengths to user length units
+   
+   implicit none
+   type(type_spherical),intent(in) :: sph
+   type(type_spherical) :: s
+   
+   s = type_spherical(dc=sph%dc*para%box_side,ra=sph%ra/unit%degree,dec=sph%dec/unit%degree)
+   
+end function sph_deg_l
              
 end module module_tiling
