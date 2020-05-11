@@ -29,7 +29,7 @@ v0.26 24/04/2020: Default parameterset via "parameterset*"
 v0.27 30/04/2020: Added module "shared_module_vectors", removed module "module_interface", minor fixes, comments
 v0.28 01/05/2020: New module "module_selection_tools" to simplify "module_user_selection_..."
 v0.29 04/05/2020: Parameter file with logical types, improved automatic parameter evaluation via set_auto_parameter routine
-v0.30 06/05/2020: New projection methods (see randomisation parameter)
+v0.30 11/05/2020: New projection methods (see randomisation parameter)
 
 Developed by Danail Obreschkow (danail.obreschkow@icrar.org)
 
@@ -66,22 +66,22 @@ GETTING STARTED
 7) Check stingray version
    > ./stingray -v
        
-7) Try to run the test-cone using the
+8) Try to run the test-cone using the
    > ./stingray
-   On most MacOS systems, stingray will be able to automatically find the path of the parameterfile
-   and the small dataset included for testing. It will produce a small mocksky in the subdirectory 'test'.
-   The sky should contain 400 galaxies in 386 groups. If the parameterfile and/or paths cannot be found
-   automatically, follow steps (8) and (9).
-      
-8) Edit the parameter file parameter.txt, especially the input and output paths
-   
-9) Produce mock observing cone
-   > ./stingray [-parameterfile .../parameter.txt] [-parameterset ...]
-   
-9) Check files written into output directory
-   
-10) Optionally, visualise the cone in R
+   NB: This command assumes the default parameter file "parameters.txt" to be in the current directory.
+       Otherwise you must specify the path+filename of the parameter file using the option -parameterfile ...
+   NB: The default parameter file produces a mock sky using the SAM galaxies in the "data" subdirectory of stingray.
+       This sky should contain 400 galaxies in 386 groups.
 
+To produce your own, custom-made mock sky,
+
+9) Edit the parameter file parameter.txt as required. (see explanations in default parameter file)
+
+10) Edit the selection function "module_user_selection_..." as required. (see explanations in the comments of the default module)
+   
+11) Produce mock observing cone
+    > ./stingray [-parameterfile .../parameter.txt] [-parameterset ...]
+   
 
 QUICK START ON ICRAR-HYADES
 ====================================================================================================================================
