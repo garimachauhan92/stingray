@@ -47,6 +47,7 @@ module module_parameters
 
       ! large-scale structure randomisation
       character(7)         :: randomisation ! randomisation type, "none", "tile", "shell" or "single"
+      character(4)         :: prng
       integer*4            :: seed  ! seed of random number generator (integer >=1)
       logical*4            :: translate
       logical*4            :: rotate
@@ -86,6 +87,7 @@ module module_parameters
       real*4               :: velocity_car(3)   ! [km/s] velocity of observer cartesian survey-coordinates
       real*4               :: observer_translation(3) ! [box side length] fixed observer translation
       real*4               :: observer_rotation(3,3) ! rotation matrix to move the (x,y,z)-sky axis onto the central (RA,dec)-sky
+      logical*4            :: modern_prng ! logical flag, true iff prng==F95
       
       ! hidden developer parameters
       character(len=255)   :: devoptions
@@ -142,6 +144,7 @@ subroutine initialize_parameters
    call get_parameter_value(para%omega_m,'omega_m',min=0.0,max=1.0)
    call get_parameter_value(para%omega_b,'omega_b',min=0.0,max=1.0)
    call get_parameter_value(para%randomisation,'randomisation')
+   call get_parameter_value(para%prng,'prng')
    call get_parameter_value(para%seed,'seed',min=1)
    call get_parameter_value(para%translate,'translate')
    call get_parameter_value(para%rotate,'rotate')
@@ -176,7 +179,8 @@ subroutine initialize_parameters
    if (para%observer_y>para%box_side) call error('observer_y must not be larger than box_side')
    if (para%observer_z>para%box_side) call error('observer_z must not be larger than box_side')
    if (.not.any(para%randomisation==(/'none   ','tiles  ','shells ','single '/))) &
-   & call error('randomisation must be either "none", "tiles", "shells" or "single"')
+   & call error('parameter "randomisation" must be either "none", "tiles", "shells" or "single"')
+   if (.not.any(para%prng==(/'F77 ','F95 '/))) call error('parameter "prng" must be either "F77" or "F95"')
    
    ! make output path
    para%path_output = dir(para%path_output,ispath=.true.)
@@ -213,6 +217,7 @@ subroutine make_derived_parameters
 
    call sph2car(para%velocity_norm,para%velocity_ra,para%velocity_dec,para%velocity_car,astro=.true.)
    call fix_observer
+   para%modern_prng = trim(para%prng)=="F95"
 
 contains
 

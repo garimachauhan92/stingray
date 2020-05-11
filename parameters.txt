@@ -49,10 +49,10 @@ omega_b                 auto           energy density of baryonic matter relativ
 #    + if randomisation is set to "none", seed, translate, rotate and invert are ignored
 #    + setting translate=rotate=invert="n" is equivalent to setting randomisation to "none"
 randomisation           tiles          choose between "none", "tiles", "shells", "single"
-#prgn                    F77            pseudo-random number generator; choose "F77" of "F90". The F77 PRGN generates a
-#                                       low-discrepancy sequence, which has poorer statistical properties than F90, but is strictly
-#                                       independent on system on compiler, whereas F90 can depend on the latter at fixed seed.
-seed                    2              seed for the random number generator of symmetry operations (positive integer)
+prng                    F77            type of pseudo-random number generator; choose "F77" or "F95". The GNU F77 PRNG generates a
+#                                      low-discrepancy sequence, which has poorer randomness properties than F95, but is strictly
+#                                      independent of the compiler, whereas F95 can depend on the latter at fixed seed.
+seed                    1              seed for the random number generator of symmetry operations (positive integer)
 translate               y              logical flag specifying if random translations are applied
 rotate                  y              logical flag specifying if random rotations are applied
 invert                  n              logical flag specifying if random inversions are applied

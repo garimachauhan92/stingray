@@ -316,7 +316,6 @@ subroutine assign_random_transformation(tr,discrete_rotation)
    type(type_transformation),intent(inout)  :: tr
    logical,intent(in) :: discrete_rotation
    integer*4 :: k,d
-   logical,parameter :: modern = .true.
    real*4   :: axis(3)
    real*4   :: angle
    real*4,parameter :: rxx(24) = real((/+1,+1,+1,+1,-1,-1,-1,-1,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0/),4)
@@ -334,18 +333,18 @@ subroutine assign_random_transformation(tr,discrete_rotation)
    if (para%rotate) then
       if (discrete_rotation) then
          if (devoption('yrotation')) then
-            k = yrotations(get_random_integer(1,4,modern=modern))
+            k = yrotations(get_random_integer(1,4,modern=para%modern_prng))
          else
-            k = get_random_integer(1,24,modern=modern)
+            k = get_random_integer(1,24,modern=para%modern_prng)
          end if
          tr%rotation = reshape((/rxx(k),rxy(k),rxz(k),ryx(k),ryy(k),ryz(k),rzx(k),rzy(k),rzz(k)/),(/3,3/))
       else
          if (devoption('yrotation')) then
             axis = (/0.0,1.0,0.0/)
          else
-            axis = get_random_unit_vector(modern=modern)
+            axis = get_random_unit_vector(modern=para%modern_prng)
          end if
-         angle = get_random_uniform_number(0.0,2*pi,modern=modern)
+         angle = get_random_uniform_number(0.0,2*pi,modern=para%modern_prng)
          tr%rotation = rotation_matrix(axis,angle)
       end if
    else
@@ -354,7 +353,7 @@ subroutine assign_random_transformation(tr,discrete_rotation)
 
    ! choose random inversion
    if (para%invert) then
-      tr%inverted = get_random_uniform_number(0.0,1.0,modern=modern)>0.5
+      tr%inverted = get_random_uniform_number(0.0,1.0,modern=para%modern_prng)>0.5
    else
       tr%inverted = .false.
    end if
@@ -362,7 +361,7 @@ subroutine assign_random_transformation(tr,discrete_rotation)
    ! choose random translation
    if (para%translate) then
       do d = 1,3
-         tr%translation(d) = get_random_uniform_number(0.0,1.0,modern=modern)
+         tr%translation(d) = get_random_uniform_number(0.0,1.0,modern=para%modern_prng)
       end do
       if (devoption('xztranslation')) tr%translation(2) = 0.0
    else

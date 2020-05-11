@@ -79,7 +79,7 @@ subroutine set_seed(seed)
    seed_array = seed
    call random_seed(put=seed_array)
    
-   ! set sed for PRNG of rand(), GNU Fortran 77 standard
+   ! set seed for PRNG of rand(), GNU Fortran 77 standard
    call srand(seed)
    do i=1,100
       call nil(rand()) ! to get rid of highly predictable initial sequence
