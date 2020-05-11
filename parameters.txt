@@ -3,19 +3,19 @@
 # Automatic values:
 # Parameters given a value 'auto' are understood to be set automatically.
 # The rules for making these parameters must be set programmatically in the function
-# "make_automatic_parameters" of the user module "module_user_routines_...".
-# If parameters are set in the user model *and* given a numerical value in this parameter
-# file, the parameter file takes priority over the automatic assignment.
+# "make_auto_parameters" of the user module "module_user_routines_...".
+# If parameters are set in the user module, but also a value (other than 'auto') in this parameter file,
+# the value of the parameter file takes priority over the automatic assignment.
 #
 # Parameter sets:
 # Stingray allows the definition of sets of different parameters listed in a single parameter file.
-# A parameter set starts with a line 'parameterset [name]' end ends with a line 'end'. By default, only parameters listed outside
+# A parameter set starts with a line "parameterset [name]" end ends with a line "end". By default, only parameters listed outside
 # a parameter set are used. To use the parameters of a specific set, stingray must be called with the option "-parameterset [name]".
 # In this case, the parameters listed inside a parameter set take priority over those listed outside the parameter set.
 # Parameters not specified in a parameter set are set to their default value given outside the parameter set.
 #
 # Comments:
-# Arbitrary comment lines, starting with '#' can be added to this parameter file. Also note
+# Empty lines, as well as line parts starting with the symbol '#' are ignored. Thus '#' can be used for comments. Also note
 # that the text following the parameter values in the same line is ignored and can be used to describe the parameter.
 
 
