@@ -59,7 +59,7 @@ GETTING STARTED
    > make system=[your system name]
    NB: depending on the system, it might be necessary to load fortran and hdf5 packages,
        e.g. using a command like
-       > module load gfortran/6.3.0 hdf5/1.10.2
+       > module load gfortran hdf5
    NB: to activate all debugging flags use
        > make mode=dev
        
@@ -70,13 +70,13 @@ GETTING STARTED
    > ./stingray
    On most MacOS systems, stingray will be able to automatically find the path of the parameterfile
    and the small dataset included for testing. It will produce a small mocksky in the subdirectory 'test'.
-   The sky should contain 200 galaxies in 191 groups. If the parameterfile and/or paths cannot be found
+   The sky should contain 400 galaxies in 386 groups. If the parameterfile and/or paths cannot be found
    automatically, follow steps (8) and (9).
       
 8) Edit the parameter file parameter.txt, especially the input and output paths
    
 9) Produce mock observing cone
-   > ./stingray [-parameterfile .../parameter.txt]
+   > ./stingray [-parameterfile .../parameter.txt] [-parameterset ...]
    
 9) Check files written into output directory
    
@@ -91,7 +91,7 @@ cd ~
 rm -rf stingray/ # remove previous surfsuite directory
 git clone https://github.com/obreschkow/stingray # install updated version
 cd stingray # change to surfsuite directory
-module load gfortran/6.3.0 hdf5/1.10.2 # load required modules
+module load gfortran hdf5 # load required modules
 make system=hyades # compile code
 ./stingray version # check version
 
