@@ -29,7 +29,8 @@ v0.26 24/04/2020: Default parameterset via "parameterset*"
 v0.27 30/04/2020: Added module "shared_module_vectors", removed module "module_interface", minor fixes, comments
 v0.28 01/05/2020: New module "module_selection_tools" to simplify "module_user_selection_..."
 v0.29 04/05/2020: Parameter file with logical types, improved automatic parameter evaluation via set_auto_parameter routine
-v0.30 11/05/2020: New projection methods (see randomisation parameter)
+v0.30 10/05/2020: New projection methods (see randomisation parameter)
+v0.31 11/05/2020: Various OOP improvements; packed relevant snapshot/tile/shell data into type_base for interfacing with user
 
 Developed by Danail Obreschkow (danail.obreschkow@icrar.org)
 

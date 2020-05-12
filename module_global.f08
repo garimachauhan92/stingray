@@ -65,11 +65,11 @@ module module_global
 
    type type_base
    
-      type(type_spherical) :: spherical = type_spherical()  ! spherical coordinates (dc,ra,dec) [simulation length units, rad, rad]
-      type(vector4)        :: cartesian = vector4()         ! cartesian coordinates (x,y,z) [simulation length units]
-      type(type_index)     :: index = type_index()          ! various indices
+      type(type_spherical)       :: spherical = type_spherical()           ! spherical coordinates (dc,ra,dec) [simulation length units, rad, rad]
+      type(vector4)              :: cartesian = vector4()                  ! cartesian coordinates (x,y,z) [simulation length units]
+      type(type_index)           :: index = type_index()                   ! various indices
       type(type_transformation)  :: transformation = type_transformation() ! comoving coordinate transformation from N-body box to sky
-      real*4               :: snapshot_redshift = 0.0       ! redshift of this snapshot, z=1/a-1
+      real*4                     :: snapshot_redshift = 0.0                ! redshift of this snapshot, z=1/a-1
       
    end type type_base
    

@@ -19,7 +19,7 @@ module module_tiling
    public   :: map_tile_onto_sky
    public   :: sph_deg_l
    public   :: write_hdf5_tiling
-   public   :: snapshot,tile,shell
+   public   :: snapshot,tile,shell ! read-only
    
    private
 
