@@ -150,7 +150,7 @@ subroutine selection_gama(pos,sam,sky,range,selected)
                & ((pos%ra>=211.5).and.(pos%ra<=223.5).and.(pos%dec>= -2.00).and.(pos%dec<= +3.00)).or. & ! field G15
                & ((pos%ra>=339.0).and.(pos%ra<=351.0).and.(pos%dec>=-35.00).and.(pos%dec<=-30.00))       ! field G23
    case (select_by_sam)
-      selected = (sam%mstars_disk+sam%mstars_bulge)>1e6
+      selected = (sam%mstars_disk+sam%mstars_bulge)/para%h>1e6
    case (select_by_pos_and_sam)
       ! note: The selection below is based on a rough estimate of a generic apparent magnitude mag.
       !       This same magnitude is computed later and stored in sky%mag, which is used onder 'selected_by_all'.
@@ -198,7 +198,7 @@ subroutine selection_devils(pos,sam,sky,range,selected)
                & ((pos%ra>= 52.263).and.(pos%ra<= 53.963).and.(pos%dec>=-28.500).and.(pos%dec<=-27.500)).or. & ! D03	(ECDFS)
                & ((pos%ra>=149.380).and.(pos%ra<=150.700).and.(pos%dec>= +1.650).and.(pos%dec<= +2.790))       ! D10	(COSMOS)
    case (select_by_sam)
-      selected = (sam%mstars_disk+sam%mstars_bulge)>1e6
+      selected = (sam%mstars_disk+sam%mstars_bulge)/para%h>1e6
    case (select_by_pos_and_sam)
       ! note: see comments in selection_gama
       mag = convert_absmag2appmag(convert_stellarmass2absmag((sam%mstars_disk+sam%mstars_bulge)/para%h,1.0),pos%dc/para%h)
@@ -234,7 +234,7 @@ subroutine selection_waves_g23(pos,sam,sky,range,selected)
       range%dec = (/-35.0,-30.0/) ! [deg] range of declinations, bound to -90 to +90
    case (select_by_pos)
    case (select_by_sam)
-      selected = (sam%mstars_disk+sam%mstars_bulge)>1e6
+      selected = (sam%mstars_disk+sam%mstars_bulge)/para%h>1e6
    case (select_by_pos_and_sam)
       ! note: see comments in selection_gama
       mag = convert_absmag2appmag(convert_stellarmass2absmag((sam%mstars_disk+sam%mstars_bulge)/para%h,1.0),pos%dc/para%h)
