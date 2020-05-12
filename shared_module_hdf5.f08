@@ -231,7 +231,7 @@ subroutine write_dataset_0d_string(dataset,dat,attribute)
    
    call check_file_for_writing(dataset)
    
-   n(1) = len(dat)
+   n(1) = max(1,len(dat))
    call h5screate_simple_f(rank,(/1_8/),space_id,status)  ! Create the space for the dataset
    call H5Tcopy_f(H5T_FORTRAN_S1, filetype, hdferr)
    call H5Tset_size_f(filetype, n(1), hdferr)

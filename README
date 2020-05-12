@@ -71,7 +71,7 @@ GETTING STARTED
    NB: This command assumes the default parameter file "parameters.txt" to be in the current directory.
        Otherwise you must specify the path+filename of the parameter file using the option -parameterfile ...
    NB: The default parameter file produces a mock sky using the SAM galaxies in the "data" subdirectory of stingray.
-       This sky should contain 400 galaxies in 389 groups.
+       This sky should contain 500 galaxies in 485 groups.
 
 To produce your own, custom-made mock sky,
 
@@ -96,7 +96,7 @@ make system=hyades # compile code
 ./stingray version # check version
 
 # To run a quick test execute the following line (still from within the stingray directory)
-# The sky should contain 400 galaxies in 389 groups. The data is written in the directory "example"
+# The sky should contain 500 galaxies in 485 groups. The data is written in the directory "example"
 ./stingray
 
 

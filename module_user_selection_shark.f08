@@ -82,6 +82,8 @@ subroutine selection_example(pos,sam,sky,range,selected)
    
       ! here enter the individual maximal ranges of comoving distance, right ascension and declination covered by the survey,
       ! as restrictive as possible; these ranges are mandatory
+      ! Note: it is possible to have the range%ra go from a larger number (e.g. 330) to a smaller one (e.g. 30). In this case,
+      !       the sky defined by the wedge from 330 deg (=-30deg) to 30 deg is considered.
       range%dc = (/0.0,300.0/)      ! [simulation length units, here Mpc/h] comoving distance range
       range%ra = (/150.0,210.0/)    ! [deg] range of right ascensions, bound to 0 to 360
       range%dec = (/-10.0,10.0/)    ! [deg] range of declinations, bound to -90 to +90
@@ -96,7 +98,7 @@ subroutine selection_example(pos,sam,sky,range,selected)
       
       ! here add additional, maximal restrictions that only use the SAM-properties in type type_sam;
       ! if no such restrictions exist, leave this clause empty
-      selected = sam%mstars_disk>1e8
+      selected = sam%mstars_disk+sam%mstars_bulge>1e8
       
    case (select_by_pos_and_sam)
    
@@ -109,7 +111,7 @@ subroutine selection_example(pos,sam,sky,range,selected)
       ! here add additional, maximal restrictions that require apparent sky properties (sky), as defined in module_user_routines,
       ! possibly combined with position and SAM properties;
       ! if no such restrictions exist, leave this clause empty
-      selected = sky%mag<19.17 .and. sky%zobs<0.1 ! select by apparent magnitude and redshift
+      selected = sky%mag<19.215 .and. sky%zobs<0.1 ! select by apparent magnitude and redshift
       
    end select
    

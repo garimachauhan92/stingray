@@ -20,21 +20,15 @@ function rotate_vector(x,base,ispseudovector) result(y)
    real*4,intent(in)          :: x(3)        ! vector to be rotated
    type(type_base),intent(in) :: base
    logical,intent(in)         :: ispseudovector
-   integer*4                  :: itile,ishell
-   real*4                     :: y(3)
-   real*4                     :: rotationmatrix(3,3)
    real*4                     :: sgn
-   
-   itile = base%index%tile
-   ishell = base%index%shell
+   real*4                     :: y(3)
    
    if (ispseudovector) then
-      sgn = (1-2*log2int(shell(ishell)%transformation%inverted))*(1-2*log2int(tile(itile)%transformation%inverted))
-   else
       sgn = 1
+   else
+      sgn = 1-2*log2int(base%transformation%inverted)
    end if
-   rotationmatrix = sgn*matmul(shell(ishell)%transformation%rotation,tile(itile)%transformation%rotation)
-   y = matmul(rotationmatrix,x)
+   y = sgn*matmul(base%transformation%rotation,x)
    
 end function rotate_vector
 

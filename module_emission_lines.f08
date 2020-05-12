@@ -14,14 +14,14 @@ module module_emission_lines
    use shared_module_core
    use shared_module_constants
    use shared_module_cosmology
-   
-   private
 
    public   :: make_emission_line
    public   :: type_line_input
    public   :: type_line_shape
    public   :: type_line_profile
    public   :: empty_line_shape
+   
+   private
    
    type type_line_input
    

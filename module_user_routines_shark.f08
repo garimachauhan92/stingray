@@ -16,8 +16,6 @@
 !   for instance, this module contains the operator .safedivide. to perform a division (/) but avoid infinities and assign 0/0=0
 ! + user parameters, set by user in the parameter file, accessible via the variable "para" of derived data type type_para
 !   (see module_global for an overview of the variables in this type)
-! + snapshot information, such as redshifts and distances ranges spanned by each snapshot, accessible via the array
-!   "snapshot" of derived type type_snapshot (see module_global for an overview of the variables in this type)
 ! **********************************************************************************************************************************
 
 
@@ -277,20 +275,30 @@ subroutine make_sky_object(sky_object,sam,base)
    type(type_sam),intent(in)     :: sam         ! SAM properties of the galaxy, as listed in the user defined type_sam;
                                                 ! in the case of groups, this is the central galaxy
    type(type_base),intent(in)    :: base        ! basic properties about the placement in the mock sky:
-                                                ! real*4    base%cartesian%x [user length unit] comoving cartesian x-coordinate
-                                                ! real*4    base%cartesian%y [user length unit] comoving cartesian y-coordinate
-                                                ! real*4    base%cartesian%z [user length unit] comoving cartesian z-coordinate
-                                                ! real*4    base%spherical%dc [user length unit] comoving distance
-                                                ! real*4    base%spherical%ra [rad] right ascension
-                                                ! real*4    base%spherical%dec [rad] declination
-                                                ! integer*4 base%index%tile tile index
-                                                ! integer*4 base%index%shell shell index
-                                                ! integer*8 base%index%group unique group id (-1 for isolated galaxies)
-                                                ! integer*8 base%index%galaxy unique galaxy id (for groups this is the id of the
-                                                !           central galaxy or -1, if the central galaxy is not selected)
+                                 ! real*4       base%cartesian%x [user length unit] comoving cartesian x-coordinate
+                                 ! real*4       base%cartesian%y [user length unit] comoving cartesian y-coordinate
+                                 ! real*4       base%cartesian%z [user length unit] comoving cartesian z-coordinate
+                                 ! real*4       base%spherical%dc [user length unit] comoving distance
+                                 ! real*4       base%spherical%ra [rad] right ascension
+                                 ! real*4       base%spherical%dec [rad] declination
+                                 ! real*4       base%snapshot_redshift redshift of snapshot
+                                 ! integer*4    base%index%tile tile index
+                                 ! integer*4    base%index%shell shell index
+                                 ! integer*4    base%index%snapshot snapshot index
+                                 ! integer*4    base%index%subvolume subvolume index
+                                 ! integer*8    base%index%group unique group id (-1 for isolated galaxies)
+                                 ! integer*8    base%index%galaxy unique galaxy id (for groups this is the id of the
+                                 !              central galaxy or -1, if the central galaxy is not selected)
+                                 ! real*4(3)    base%transformation%translation [box sides] translation vector from SAM to sky
+                                 ! real*4(3,3)  base%transformation%rotation rotation matrix from SAM to sky coordinates
+                                 ! logical      base%transformation%inverted flag that is true if the three axes have been inverted
    ! end required interface
    
    call nil(sky_object,sam,base) ! dummy statement to avoid compiler warnings (do not edit)
+   
+   ! checks
+   if (base%index%snapshot/=sam%snapshot) call error('snapshot index mismatch')
+   if (base%index%subvolume/=sam%subvolume) call error('subvolume index mismatch')
 
    ! indices
    sky_object%snapshot      = sam%snapshot
@@ -443,7 +451,7 @@ contains
       real,parameter          :: G = 4.30241e-6     ! [(km/s)^2 kpc/Msun] gravitational constant
       
       ! scale factor for comoving-physical conversion
-      a = 1.0/(1.0+snapshot(sam%snapshot)%redshift) ! scale factor at redshift of snapshot
+      a = 1.0/(1.0+base%snapshot_redshift) ! scale factor at redshift of snapshot
       cMpch2pkpc = 1e3*a/para%h
    
       ! set halo mass, radius and concentration

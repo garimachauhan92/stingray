@@ -6,14 +6,17 @@ module module_parameters
    use shared_module_maths
    use shared_module_vectors
    use shared_module_constants
+   use shared_module_hdf5
    use module_global
-   
-   private
    
    public   :: read_parameterfile
    public   :: initialize_parameters
-   public   :: option,devoption
+   public   :: write_hdf5_parameters
+   public   :: option
+   public   :: devoption
    public   :: para
+   
+   private
    
    integer*4,parameter           :: n_keywords_max = 20
    integer*4,protected           :: n_keywords
@@ -47,6 +50,7 @@ module module_parameters
 
       ! large-scale structure randomisation
       character(7)         :: randomisation ! randomisation type, "none", "tile", "shell" or "single"
+      logical*4            :: shell_tweaking
       character(4)         :: prng
       integer*4            :: seed  ! seed of random number generator (integer >=1)
       logical*4            :: translate
@@ -144,6 +148,7 @@ subroutine initialize_parameters
    call get_parameter_value(para%omega_m,'omega_m',min=0.0,max=1.0)
    call get_parameter_value(para%omega_b,'omega_b',min=0.0,max=1.0)
    call get_parameter_value(para%randomisation,'randomisation')
+   call get_parameter_value(para%shell_tweaking,'shell_tweaking')
    call get_parameter_value(para%prng,'prng')
    call get_parameter_value(para%seed,'seed',min=1)
    call get_parameter_value(para%translate,'translate')
@@ -352,5 +357,85 @@ logical function devoption(string)
    end do
    
 end function devoption
+
+subroutine write_hdf5_parameters(filename_hdf5)
+
+   implicit none
+   character(*),intent(in)    :: filename_hdf5  ! output filename
+   character(:),allocatable   :: name
+   
+   allocate(character(1)::name) ! empty allocation to avoid compiler flags
+
+   ! open HDF5 file
+   call hdf5_open(filename_hdf5,.true.)
+   
+   ! write group "parameters"
+   name = 'parameters/'
+   call hdf5_add_group(name)
+   call hdf5_write_data(name//'survey',trim(para%survey),'name of simulated survey')
+   call hdf5_write_data(name//'path_output',trim(para%path_output))
+   call hdf5_write_data(name//'path_input',trim(para%path_input))
+   call hdf5_write_data(name//'para%filename_sky',trim(para%filename_sky), &
+   & 'filename of mock sky file(s), without extension .hdf5 and without subvolume index')
+   call hdf5_write_data(name//'box_side',para%box_side, &
+   & '[length_unit] comoving side-length of simulation box in multiples of length_unit')
+   call hdf5_write_data(name//'length_unit',para%length_unit,'[m] SI-value of comoving length unit')
+   call hdf5_write_data(name//'snapshot_min',para%snapshot_min,'index of earliest snapshot used for the mock sky')
+   call hdf5_write_data(name//'snapshot_max',para%snapshot_max,'index of latest snapshot used for the mock sky')
+   call hdf5_write_data(name//'subvolume_min',para%subvolume_min,'index of first subvolume used for the mock sky')
+   call hdf5_write_data(name//'subvolume_max',para%subvolume_max,'index of last subvolume used for the mock sky')
+   call hdf5_write_data(name//'h',para%h,'[-] Hubble parameter H0=h*100 km/s/Mpc')
+   call hdf5_write_data(name//'omega_l',para%omega_l,'energy density of dark energy relative to closure density')
+   call hdf5_write_data(name//'omega_m',para%omega_m,'energy density of all matter relative to closure density')
+   call hdf5_write_data(name//'omega_b',para%omega_b,'energy density of baryonic matter relative to closure density')
+   call hdf5_write_data(name//'randomisation',trim(para%randomisation),'method used to randomize cosmic large-scale structure')
+   call hdf5_write_data(name//'shell_tweaking',para%shell_tweaking, &
+   & 'logical flag specifying if the shell radii are tweaked to match snapshot boundaries; used only if randomisation=shells')
+   call hdf5_write_data(name//'prng',trim(para%prng),'type of pseudo-random number generator')
+   call hdf5_write_data(name//'seed',para%seed,'seed for the random number generator of symmetry operations')
+   call hdf5_write_data(name//'translate',para%translate, &
+   & 'logical flag specifying if random translations are applied (0=false, 1=true)')
+   call hdf5_write_data(name//'rotate',para%rotate, &
+   & 'logical flag specifying if random rotations are applied (0=false, 1=true)')
+   call hdf5_write_data(name//'invert',para%invert, &
+   & 'logical flag specifying if random inversions are applied (0=false, 1=true)')
+   call hdf5_write_data(name//'fixed_observer_position',para%fix_observer_rotation, &
+   & 'logical flag specifying if the position of the observer in the nbody box is fixed (0=false, 1=true)')
+   call hdf5_write_data(name//'observer_x',para%observer_x, &
+   & '[length units] x-coordinate of fixed observere position in the N-body box')
+   call hdf5_write_data(name//'observer_y',para%observer_y, &
+   & '[length units] y-coordinate of fixed observere position in the N-body box')
+   call hdf5_write_data(name//'observer_z',para%observer_z, &
+   & '[length units] z-coordinate of fixed observere position in the N-body box')
+   call hdf5_write_data(name//'fixed_observer_rotation',para%fix_observer_rotation, &
+   & 'logical flag specifying if the rotation between the N-body and sky coordinates at the observer is fixed (0=false, 1=true)')
+   call hdf5_write_data(name//'xaxis_ra',para%xaxis_ra/unit%degree, &
+   & '[deg] RA coordinate of the SAM x-axis in spherical survey coordinates')
+   call hdf5_write_data(name//'xaxis_dec',para%xaxis_dec/unit%degree, &
+   & '[deg] Dec coordinate the SAM x-axis in spherical survey coordinates')
+   call hdf5_write_data(name//'yz_angle',para%yz_angle/unit%degree,'[deg] Rotation of the SAM (y,z)-plane on the sky')
+   call hdf5_write_data(name//'velocity_norm',para%velocity_norm, &
+   & '[km/s] observer velocity relative to CMB rest-frame')
+   call hdf5_write_data(name//'velocity_ra',para%velocity_ra, &
+   & '[deg] RA coordinate to which the observer is moving relative to CMB rest-frame')
+   call hdf5_write_data(name//'velocity_dec',para%velocity_dec, &
+   & '[deg] Dec coordinate to which the observer is moving relative to CMB rest-frame')
+   call hdf5_write_data(name//'search_angle',para%search_angle, &
+   & '[deg] typical angle in which overlaps between survey volume and tiling grid are searched')
+   call hdf5_write_data(name//'volume_search_level',para%volume_search_level, &
+   & 'specifies the number of search points (2^#)^3 inside each tile')
+   call hdf5_write_data(name//'options',trim(para%options), &
+   & 'string of options specifying what properties are generated')
+   call hdf5_write_data(name//'keep_binaries',para%keep_binaries, &
+   & 'logical flag specifying if binary output files are kept in additino to this HDF5 (0=false, 1=true)')
+   call hdf5_write_data(name//'keep_log',para%keep_binaries, &
+   & 'logical flag specifying if the logfile is kept after successful runs (0=false, 1=true)')
+   if (.not.isempty(para%devoptions)) call hdf5_write_data(name//'devoptions',trim(para%devoptions), &
+   & 'string of developer options')
+
+   ! close HDF5 file
+   call hdf5_close()
+
+end subroutine write_hdf5_parameters
 
 end module module_parameters

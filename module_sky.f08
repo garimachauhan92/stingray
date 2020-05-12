@@ -61,14 +61,6 @@ subroutine make_sky
    
    call tic('POSITION OBJECTS INTO SKY AND MAKE APPARENT PROPERTIES')
    
-   ! make snapshot properties
-   allocate(snapshot(para%snapshot_min:para%snapshot_max))
-   do isnapshot = para%snapshot_min,para%snapshot_max
-      snapshot(isnapshot)%redshift = get_redshift(isnapshot)
-   end do
-   call make_distance_ranges
-   call count_tiles_of_snapshot
-   
    ! make task list
    n_tasks = (para%snapshot_max-para%snapshot_min+1)*(para%subvolume_max-para%subvolume_min+1)
    allocate(task(n_tasks))
@@ -109,7 +101,8 @@ subroutine make_sky
    totstats%n_distinct = 0
    totstats%n_replica_max = 0
    
-   fmt = '(A,A,I0.'//val2str(ceiling(log10(para%snapshot_max+1.0)))//',A,I0.'//val2str(ceiling(log10(para%subvolume_max+1.0)))// &
+   fmt = '(A,A,I0.'//val2str(ceiling(log10(para%snapshot_max+1.0)))//',A,I0.'//&
+       & val2str(max(1,ceiling(log10(para%subvolume_max+1.0))))// &
        & ',A,I0.'//val2str(ceiling(log10(size(tile)+1.0)))//',A,I0,A,I0,A)'
    
    !$ call OMP_set_nested(.true.) ! enables nested parallelism
@@ -371,7 +364,7 @@ subroutine place_subvolume_into_tile(itile,isnapshot,isubvolume,sam,sam_sel,sam_
    real*4                                          :: xsam(3),xtile_min(3),xtile_max(3)
    real*4,allocatable                              :: xtile(:,:)
    logical                                         :: wrap_groups
-   logical                                         :: devoption_xzgrid
+   logical                                         :: devoption_xygrid
    
    type type_lim
       logical  :: survey = .false.
@@ -402,13 +395,20 @@ subroutine place_subvolume_into_tile(itile,isnapshot,isubvolume,sam,sam_sel,sam_
    
    ! initialise variables
    ishell = tile(itile)%shell
-   base%index%shell = ishell
-   base%index%tile = itile
    n_galaxies = 0
    n_groups = 0
    prefixid = int(limit%n_galaxies_per_tile_max,8)*(int(limit%n_subvolumes_max,8)*int(isnapshot,8)+int(isubvolume,8))
-   devoption_xzgrid = devoption('xzgrid')
+   devoption_xygrid = devoption('xygrid')
    wrap_groups = trim(para%randomisation)=='tiles'
+   
+   ! make fixed base properties
+   base%index%shell = ishell
+   base%index%tile = itile
+   base%index%snapshot = isnapshot
+   base%index%subvolume = isubvolume
+   base%snapshot_redshift = snapshot(isnapshot)%redshift
+   base%transformation%inverted = xor(shell(ishell)%transformation%inverted,tile(itile)%transformation%inverted)
+   base%transformation%rotation = matmul(shell(ishell)%transformation%rotation,tile(itile)%transformation%rotation)
    
    ! allocate galaxy-arrays
    allocate(sky_galaxy_list(nsam),sky_group_list(nsam))
@@ -432,10 +432,10 @@ subroutine place_subvolume_into_tile(itile,isnapshot,isubvolume,sam,sam_sel,sam_
       
          ! evaluate normalised position of object in sam-output
          xsam = sam(isam+k)%get_position()/para%box_side
-         if (devoption_xzgrid) then
-            d = mod(isam+k,2)*2+1
+         if (devoption_xygrid) then
+            d = mod(isam+k,2)+1
             xsam(d) = max(1,min(2,nint(xsam(d)*2+0.5)))/2.0-0.25
-            xsam(2) = 0.5 ! moves objects to the xz-plane
+            xsam(3) = 0.5 ! moves objects to the xy-plane
          end if
       
          ! apply tile-symmetry to normalised coordinates
@@ -443,14 +443,14 @@ subroutine place_subvolume_into_tile(itile,isnapshot,isubvolume,sam,sam_sel,sam_
          
       end do
       
-      ! handle wrapped groups
+      ! handle wrapped groups, unwrap if appropriate
       do d = 1,3
          xtile_min(d) = minval(xtile(:,d))
          xtile_max(d) = maxval(xtile(:,d))
       end do
       dx = maxval(xtile_max-xtile_min)
       if ((dx>limit%group_diameter_max).and.(dx<1.0-limit%group_diameter_max)) then
-         if (.not.devoption_xzgrid) call error('group wider than box side times ',limit%group_diameter_max)
+         if (.not.devoption_xygrid) call error('group wider than box side times ',limit%group_diameter_max)
       end if
       if (dx>0.5) then ! group is wrapped
          if (wrap_groups) then
@@ -470,6 +470,7 @@ subroutine place_subvolume_into_tile(itile,isnapshot,isubvolume,sam,sam_sel,sam_
       do k = 1,group%n
       
          base%cartesian = map_tile_onto_sky(xtile(k,:),itile)
+         base%transformation%translation = components(base%cartesian)-xsam
          call car2sph(base%cartesian,base%spherical)
       
          ! check if distance is in the range covered by snapshot isnapshot
@@ -598,48 +599,6 @@ contains
 
 end subroutine place_subvolume_into_tile
 
-subroutine make_distance_ranges
-
-   implicit none
-   integer*4            :: i
-   real*4,allocatable   :: d(:)
-   
-   allocate(d(para%snapshot_min:para%snapshot_max))
-   do i = para%snapshot_min,para%snapshot_max
-      d(i) = redshift_to_dc(snapshot(i)%redshift)*(unit%Mpc/para%length_unit)/para%box_side ! [box side-length] comoving distance to redshift of the box
-   end do
-   
-   do i = para%snapshot_min,para%snapshot_max
-      if (i==para%snapshot_max) then
-         snapshot(i)%dmin = 0
-      else
-         snapshot(i)%dmin = 0.5*(d(i+1)+d(i))
-      end if
-      if (i==para%snapshot_min) then
-         snapshot(i)%dmax = 9999.0
-      else
-         snapshot(i)%dmax = 0.5*(d(i)+d(i-1))
-      end if
-   end do
-
-end subroutine make_distance_ranges
-
-subroutine count_tiles_of_snapshot
-
-   implicit none
-   integer*4   :: isnapshot,itile
-
-   snapshot%n_tiles = 0
-   do isnapshot = para%snapshot_min,para%snapshot_max
-      do itile = 1,size(tile)
-         if ((snapshot(isnapshot)%dmax>=tile(itile)%dmin).and.(snapshot(isnapshot)%dmin<=tile(itile)%dmax)) then
-            snapshot(isnapshot)%n_tiles = snapshot(isnapshot)%n_tiles+1
-         end if
-      end do
-   end do
-   
-end subroutine count_tiles_of_snapshot
-
 subroutine write_sky_to_hdf5
    
    implicit none
@@ -698,7 +657,9 @@ subroutine write_sky_to_hdf5
       ! write single new file
       filename = trim(para%path_output)//trim(para%filename_sky)//'.hdf5'
       call out('Write file ',trim(filename))
-      call make_hdf5(trim(filename),totstats)
+      call initialize_hdf5(trim(filename),totstats)
+      call write_hdf5_parameters(trim(filename))
+      call write_hdf5_tiling(trim(filename))
       call write_hdf5(trim(filename),sky_galaxy,sky_group)
       
       ! delete binary files
@@ -738,7 +699,9 @@ subroutine write_sky_to_hdf5
          end if
       
          ! write new file
-         call make_hdf5(trim(filename),totstats,substats,isubvolume)
+         call initialize_hdf5(trim(filename),totstats,substats,isubvolume)
+         call write_hdf5_parameters(trim(filename))
+         call write_hdf5_tiling(trim(filename))
          call write_hdf5(trim(filename),sky_galaxy,sky_group)
       
          ! free memory
@@ -765,7 +728,7 @@ subroutine write_sky_to_hdf5
 
 end subroutine write_sky_to_hdf5
 
-subroutine make_hdf5(filename_hdf5,totstats,substats,isubvolume)
+subroutine initialize_hdf5(filename_hdf5,totstats,substats,isubvolume)
 
    implicit none
    character(*),intent(in)                      :: filename_hdf5  ! output filename
@@ -773,8 +736,7 @@ subroutine make_hdf5(filename_hdf5,totstats,substats,isubvolume)
    type(type_skystats),intent(in),optional      :: substats ! only provided if the sky corresponds to a subvolume
    integer*4,intent(in),optional                :: isubvolume
    character(:),allocatable                     :: name
-   integer*4                                    :: i
-
+   
    allocate(character(1)::name) ! empty allocation to avoid compiler flags
 
   ! create and open HDF5 file
@@ -785,131 +747,6 @@ subroutine make_hdf5(filename_hdf5,totstats,substats,isubvolume)
    name = 'run_info/'
    call hdf5_add_group(name)
    call hdf5_write_data(name//'stingray_version',version,'Version of Stingray used to produce this mock sky')
-
-   ! write group "parameters"
-   name = 'parameters/'
-   call hdf5_add_group(name)
-   call hdf5_write_data(name//'survey',para%survey,'name of simulated survey')
-   call hdf5_write_data(name//'path_output',para%path_output)
-   call hdf5_write_data(name//'path_input',para%path_input)
-   call hdf5_write_data(name//'box_side',para%box_side, &
-   & '[length_unit] comoving side-length of simulation box in multiples of length_unit')
-   call hdf5_write_data(name//'length_unit',para%length_unit,'[m] SI-value of comoving length unit')
-   call hdf5_write_data(name//'snapshot_min',para%snapshot_min,'index of earliest snapshot used for the mock sky')
-   call hdf5_write_data(name//'snapshot_max',para%snapshot_max,'index of latest snapshot used for the mock sky')
-   call hdf5_write_data(name//'subvolume_min',para%subvolume_min,'index of first subvolume used for the mock sky')
-   call hdf5_write_data(name//'subvolume_max',para%subvolume_max,'index of last subvolume used for the mock sky')
-   call hdf5_write_data(name//'h',para%h,'[-] Hubble parameter H0=h*100 km/s/Mpc')
-   call hdf5_write_data(name//'omega_l',para%omega_l,'energy density of dark energy relative to closure density')
-   call hdf5_write_data(name//'omega_m',para%omega_m,'energy density of all matter relative to closure density')
-   call hdf5_write_data(name//'omega_b',para%omega_b,'energy density of baryonic matter relative to closure density')
-   call hdf5_write_data(name//'randomisation',para%randomisation,'Method used to randomize cosmic large-scale structure')
-   call hdf5_write_data(name//'seed',para%seed,'seed for the random number generator of symmetry operations')
-   call hdf5_write_data(name//'translate',para%translate, &
-   & 'logical flag specifying if random translations are applied (0=false, 1=true)')
-   call hdf5_write_data(name//'rotate',para%rotate, &
-   & 'logical flag specifying if random rotations are applied (0=false, 1=true)')
-   call hdf5_write_data(name//'invert',para%invert, &
-   & 'logical flag specifying if random inversions are applied (0=false, 1=true)')
-   call hdf5_write_data(name//'fixed_observer_position',para%fix_observer_rotation, &
-   & 'logical flag specifying if the position of the observer in the nbody box is fixed (0=false, 1=true)')
-   call hdf5_write_data(name//'observer_x',para%observer_x, &
-   & '[length units] x-coordinate of fixed observere position in the N-body box')
-   call hdf5_write_data(name//'observer_y',para%observer_y, &
-   & '[length units] y-coordinate of fixed observere position in the N-body box')
-   call hdf5_write_data(name//'observer_z',para%observer_z, &
-   & '[length units] z-coordinate of fixed observere position in the N-body box')
-   call hdf5_write_data(name//'fixed_observer_rotation',para%fix_observer_rotation, &
-   & 'logical flag specifying if the rotation between the N-body and sky coordinates at the observer is fixed (0=false, 1=true)')
-   call hdf5_write_data(name//'xaxis_ra',para%xaxis_ra/unit%degree, &
-   & '[deg] RA coordinate of the SAM x-axis in spherical survey coordinates')
-   call hdf5_write_data(name//'xaxis_dec',para%xaxis_dec/unit%degree, &
-   & '[deg] Dec coordinate the SAM x-axis in spherical survey coordinates')
-   call hdf5_write_data(name//'yz_angle',para%yz_angle/unit%degree,'[deg] Rotation of the SAM (y,z)-plane on the sky')
-   call hdf5_write_data(name//'velocity_norm',para%velocity_norm, &
-   & '[km/s] observer velocity relative to CMB rest-frame')
-   call hdf5_write_data(name//'velocity_ra',para%velocity_ra, &
-   & '[deg] RA coordinate to which the observer is moving relative to CMB rest-frame')
-   call hdf5_write_data(name//'velocity_dec',para%velocity_dec, &
-   & '[deg] Dec coordinate to which the observer is moving relative to CMB rest-frame')
-   call hdf5_write_data(name//'search_angle',para%search_angle, &
-   & '[deg] typical angle in which overlaps between survey volume and tiling grid are searched')
-   call hdf5_write_data(name//'volume_search_level',para%volume_search_level, &
-   & 'specifies the number of search points (2^#)^3 inside each tile')
-   call hdf5_write_data(name//'options',para%options, &
-   & 'string of options specifying what properties are generated')
-   call hdf5_write_data(name//'keep_binaries',para%keep_binaries, &
-   & 'logical flag specifying if binary output files are kept in additino to this HDF5 (0=false, 1=true)')
-   call hdf5_write_data(name//'keep_log',para%keep_binaries, &
-   & 'logical flag specifying if the logfile is kept after successful runs (0=false, 1=true)')
-
-   ! write group "snapshots"
-   name = 'snapshots/'
-   call hdf5_add_group(name)
-   call hdf5_write_data(name//'id',(/(i,i=para%snapshot_min,para%snapshot_max)/), &
-   & 'snapshot number')
-   call hdf5_write_data(name//'z',snapshot%redshift, &
-   & 'redshift corresponding to the cosmic time of this snapshot')
-   call hdf5_write_data(name//'dc_min',snapshot%dmin, &
-   & '[box side length] minimal comoving distance at which this snapshot is used')
-   call hdf5_write_data(name//'dc_max',snapshot%dmax, &
-   & '[box side length] maximal comoving distance at which this snapshot is used')
-   call hdf5_write_data(name//'n_tiles',snapshot%n_tiles, &
-   & 'Number of tiles this snapshot has been considered for, irrespective of whether a galaxy was selected')
-
-   ! write group "tiles"
-   name = 'tiles/'
-   call hdf5_add_group(name)
-   call hdf5_write_data(name//'tile_id',(/(i,i=1,size(tile),1)/),'index of cubic tile')
-   call hdf5_write_data(name//'shell_id',tile%shell,'index of the shell containing the cubic tile')
-   call hdf5_write_data(name//'center_x',tile%ix(1),'[box side length] x-coordinate of tile centre')
-   call hdf5_write_data(name//'center_y',tile%ix(2),'[box side length] y-coordinate of tile centre')
-   call hdf5_write_data(name//'center_z',tile%ix(3),'[box side length] z-coordinate of tile centre')
-   call hdf5_write_data(name//'dc_min',tile%dmin,'[box side length] minimum comoving distance of tile')
-   call hdf5_write_data(name//'dc_max',tile%dmax,'[box side length] maximum comoving distance of tile')
-   call hdf5_add_group(name//'transformation')
-   call hdf5_write_data(name//'transformation/rotation_xx',tile%transformation%rotation(1,1),'xx-element3 of rotation matrix')
-   call hdf5_write_data(name//'transformation/rotation_xy',tile%transformation%rotation(1,2),'xy-element3 of rotation matrix')
-   call hdf5_write_data(name//'transformation/rotation_xz',tile%transformation%rotation(1,3),'xz-element3 of rotation matrix')
-   call hdf5_write_data(name//'transformation/rotation_yx',tile%transformation%rotation(2,1),'yx-element3 of rotation matrix')
-   call hdf5_write_data(name//'transformation/rotation_yy',tile%transformation%rotation(2,2),'yy-element3 of rotation matrix')
-   call hdf5_write_data(name//'transformation/rotation_yz',tile%transformation%rotation(2,3),'yz-element3 of rotation matrix')
-   call hdf5_write_data(name//'transformation/rotation_zx',tile%transformation%rotation(3,1),'zx-element3 of rotation matrix')
-   call hdf5_write_data(name//'transformation/rotation_zy',tile%transformation%rotation(3,2),'zy-element3 of rotation matrix')
-   call hdf5_write_data(name//'transformation/rotation_zz',tile%transformation%rotation(3,3),'zz-element3 of rotation matrix')
-   call hdf5_write_data(name//'transformation/translation_x',tile%transformation%translation(1), & 
-   & '[box side length] x-component of translation vector')
-   call hdf5_write_data(name//'transformation/translation_y',tile%transformation%translation(2), & 
-   & '[box side length] y-component of translation vector')
-   call hdf5_write_data(name//'transformation/translation_z',tile%transformation%translation(3), & 
-   & '[box side length] z-component of translation vector')
-   call hdf5_write_data(name//'transformation/inverted',tile%transformation%inverted, &
-   & 'logical flag for axis inversion (0 = no inversion, 1 = all three axes inverted)')
-
-   ! write group "shells"
-   name = 'shells/'
-   call hdf5_add_group(name)
-   call hdf5_write_data(name//'shell_id',(/(i,i=1,size(shell),1)/),'index of spherical shell')
-   call hdf5_write_data(name//'dc_min',shell%dmin,'[box side length] minimum comoving distance of shell')
-   call hdf5_write_data(name//'dc_max',shell%dmax,'[box side length] maximum comoving distance of shell')
-   call hdf5_add_group(name//'transformation')
-   call hdf5_write_data(name//'transformation/rotation_xx',shell%transformation%rotation(1,1),'xx-element3 of rotation matrix')
-   call hdf5_write_data(name//'transformation/rotation_xy',shell%transformation%rotation(1,2),'xy-element3 of rotation matrix')
-   call hdf5_write_data(name//'transformation/rotation_xz',shell%transformation%rotation(1,3),'xz-element3 of rotation matrix')
-   call hdf5_write_data(name//'transformation/rotation_yx',shell%transformation%rotation(2,1),'yx-element3 of rotation matrix')
-   call hdf5_write_data(name//'transformation/rotation_yy',shell%transformation%rotation(2,2),'yy-element3 of rotation matrix')
-   call hdf5_write_data(name//'transformation/rotation_yz',shell%transformation%rotation(2,3),'yz-element3 of rotation matrix')
-   call hdf5_write_data(name//'transformation/rotation_zx',shell%transformation%rotation(3,1),'zx-element3 of rotation matrix')
-   call hdf5_write_data(name//'transformation/rotation_zy',shell%transformation%rotation(3,2),'zy-element3 of rotation matrix')
-   call hdf5_write_data(name//'transformation/rotation_zz',shell%transformation%rotation(3,3),'zz-element3 of rotation matrix')
-   call hdf5_write_data(name//'transformation/translation_x',shell%transformation%translation(1), & 
-   & '[box side length] x-component of translation vector')
-   call hdf5_write_data(name//'transformation/translation_y',shell%transformation%translation(2), & 
-   & '[box side length] y-component of translation vector')
-   call hdf5_write_data(name//'transformation/translation_z',shell%transformation%translation(3), & 
-   & '[box side length] z-component of translation vector')
-   call hdf5_write_data(name//'transformation/inverted',shell%transformation%inverted, &
-   & 'logical flag for axis inversion (0 = no inversion, 1 = all three axes inverted)')
    
    ! write group "statistics"
    name = 'statistics/'
@@ -932,6 +769,6 @@ subroutine make_hdf5(filename_hdf5,totstats,substats,isubvolume)
    ! close HDF5 file
    call hdf5_close()
 
-end subroutine make_hdf5
+end subroutine initialize_hdf5
    
 end module module_sky

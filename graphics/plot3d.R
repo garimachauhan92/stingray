@@ -21,5 +21,5 @@ rgl.tiling(tile,shell,para$box_side)
 #rgl.shells(shell,para$box_side)
 color = rev(rainbow(1000,start=0,end=2/3))
 f = as.integer(gal$dc)
-col = color[(f-min(f))/(max(f)-min(f))*999]
+col = color[(f-min(f))/(max(f)-min(f))*999+1]
 points3d(gal$x, col = col)

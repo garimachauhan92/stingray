@@ -27,15 +27,6 @@ module module_global
       integer*4   :: n_galaxies_sky_max = int(1e9,4)
       real*4      :: group_diameter_max = 0.25               ! [box side length] maximum allow group diameter
    end type type_limit
-
-   type type_snapshot
-
-      real*4      :: redshift
-      real*4      :: dmin           ! [box side length] minimum comoving distance at which galaxies are drawn from this snapshot
-      real*4      :: dmax           ! [box side length] maximum comoving distance at which galaxies are drawn from this snapshot
-      integer*4   :: n_tiles        ! Number of tiles this snapshot has been considered for, irrespective of whether a galaxy was selected
-
-   end type type_snapshot
    
    type type_spherical ! spherical coordinates
    
@@ -59,16 +50,10 @@ module module_global
       integer*8   :: group = 0_8    ! unique group id in the mock sky (-1 for isolated galaxies)
       integer*4   :: tile = 0       ! tile index
       integer*4   :: shell = 0      ! shell index
+      integer*4   :: snapshot = 0   ! snapshot index
+      integer*4   :: subvolume = 0  ! subvolume index
       
    end type type_index
-   
-   type type_base
-   
-      type(type_spherical) :: spherical = type_spherical()  ! spherical coordinates (dc,ra,dec) [simulation length units, rad, rad]
-      type(vector4)        :: cartesian = vector4()         ! cartesian coordinates (x,y,z) [simulation length units]
-      type(type_index)     :: index = type_index()          ! various indices  
-      
-   end type type_base
    
    type type_transformation
       
@@ -78,28 +63,17 @@ module module_global
       
    end type type_transformation
 
-   type type_tile
+   type type_base
    
-      integer*4   :: shell          ! shell index
-      integer*4   :: ix(3)          ! integer position, where ix=(0,0,0) is the central box with the observer in the middle
-      real*4      :: dmin           ! [box side length] minimum comoving distance to observer
-      real*4      :: dmax           ! [box side length] maximum comoving distance to observer
-      type(type_transformation)  :: transformation
+      type(type_spherical) :: spherical = type_spherical()  ! spherical coordinates (dc,ra,dec) [simulation length units, rad, rad]
+      type(vector4)        :: cartesian = vector4()         ! cartesian coordinates (x,y,z) [simulation length units]
+      type(type_index)     :: index = type_index()          ! various indices
+      type(type_transformation)  :: transformation = type_transformation() ! comoving coordinate transformation from N-body box to sky
+      real*4               :: snapshot_redshift = 0.0       ! redshift of this snapshot, z=1/a-1
       
-   end type type_tile
-   
-   type type_shell
-   
-      real*4      :: dmin        ! [box side length] minimum comoving distance to observer
-      real*4      :: dmax        ! [box side length] maximum comoving distance to observer
-      type(type_transformation)  :: transformation
-      
-   end type type_shell
+   end type type_base
    
    type(type_limit),parameter          :: limit = type_limit()
-   type(type_tile),allocatable         :: tile(:)
-   type(type_shell),allocatable        :: shell(:)
-   type(type_snapshot),allocatable     :: snapshot(:)
    
    interface car2sph
       procedure car2sph_compact

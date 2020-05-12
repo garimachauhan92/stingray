@@ -5,8 +5,11 @@ module module_tiling
    use shared_module_maths
    use shared_module_vectors
    use shared_module_constants
+   use shared_module_cosmology
+   use shared_module_hdf5
    use module_global
    use module_parameters
+   use module_user_routines
    use module_user_selection
    use module_selection_tools
    
@@ -15,15 +18,50 @@ module module_tiling
    public   :: apply_tile_symmetry
    public   :: map_tile_onto_sky
    public   :: sph_deg_l
+   public   :: write_hdf5_tiling
+   public   :: snapshot,tile,shell
    
    private
-   integer*4,allocatable   :: intersection(:,:,:,:) ! ==  0 : not checked
-                                                    ! == -1 : does not intersect
-                                                    ! >= +1 : id of intersecting tile
-   integer*4               :: imax
-   integer*4               :: ntiles
-   integer*4               :: nchecks
-   type(type_fov)          :: fov   ! survey range in [box side length], [rad]
+
+   type type_snapshot
+
+      real*4      :: redshift
+      real*4      :: dmin           ! [box side length] minimum comoving distance at which galaxies are drawn from this snapshot
+      real*4      :: dmax           ! [box side length] maximum comoving distance at which galaxies are drawn from this snapshot
+      integer*4   :: n_tiles        ! Number of tiles this snapshot has been considered for, irrespective of whether a galaxy was selected
+
+   end type type_snapshot
+   
+   type type_shell
+   
+      real*4      :: dmin        ! [box side length] minimum comoving distance to observer
+      real*4      :: dmax        ! [box side length] maximum comoving distance to observer
+      type(type_transformation)  :: transformation
+      
+   end type type_shell
+   
+   type type_tile
+   
+      integer*4   :: shell          ! shell index
+      integer*4   :: ix(3)          ! integer position, where ix=(0,0,0) is the central box with the observer in the middle
+      real*4      :: dmin           ! [box side length] minimum comoving distance to observer
+      real*4      :: dmax           ! [box side length] maximum comoving distance to observer
+      type(type_transformation)  :: transformation
+      
+   end type type_tile
+   
+   type(type_tile),allocatable,protected         :: tile(:)
+   type(type_shell),allocatable,protected        :: shell(:)
+   type(type_snapshot),allocatable,protected     :: snapshot(:)
+   
+   type(type_fov),protected   :: fov   ! survey range in [box side length], [rad]
+   
+   integer*4,allocatable      :: intersection(:,:,:,:) ! ==  0 : not checked
+                                                      ! == -1 : does not intersect
+                                                      ! >= +1 : id of intersecting tile
+   integer*4                  :: imax
+   integer*4                  :: ntiles
+   integer*4                  :: nchecks
    
 contains
 
@@ -31,7 +69,7 @@ subroutine make_tiling
 
    implicit none
    integer*4   :: starting_point(3)
-   integer*4   :: ishell
+   integer*4   :: ishell,isnapshot
    
    call tic
    call out('MAKE 3D TILING')
@@ -41,6 +79,13 @@ subroutine make_tiling
    
    imax = ceiling(fov%dc(2))
    if (abs(imax)>limit%n_tiles_max) call error('maximum comoving distance too large for this box side length')
+   
+   ! make snapshot properties
+   allocate(snapshot(para%snapshot_min:para%snapshot_max))
+   do isnapshot = para%snapshot_min,para%snapshot_max
+      snapshot(isnapshot)%redshift = get_redshift(isnapshot)
+   end do
+   call make_distance_ranges
    
    ! make shells
    call make_shell_list
@@ -56,6 +101,7 @@ subroutine make_tiling
       call check_tile(ishell,starting_point,0)
    end do
    call make_tile_list
+   call count_tiles_of_snapshot
    call out('Number of tiles = ',size(tile))
    call out('Number of points checked = ',nchecks)
    
@@ -63,15 +109,67 @@ subroutine make_tiling
    
 end subroutine make_tiling
 
+subroutine make_distance_ranges
+
+   implicit none
+   integer*4            :: i
+   real*4,allocatable   :: d(:)
+   
+   allocate(d(para%snapshot_min:para%snapshot_max))
+   do i = para%snapshot_min,para%snapshot_max
+      d(i) = redshift_to_dc(snapshot(i)%redshift)*(unit%Mpc/para%length_unit)/para%box_side ! [box side-length] comoving distance to redshift of the box
+   end do
+   
+   do i = para%snapshot_min,para%snapshot_max
+      if (i==para%snapshot_max) then
+         snapshot(i)%dmin = 0
+      else
+         snapshot(i)%dmin = 0.5*(d(i+1)+d(i))
+      end if
+      if (i==para%snapshot_min) then
+         snapshot(i)%dmax = 9999.0
+      else
+         snapshot(i)%dmax = 0.5*(d(i)+d(i-1))
+      end if
+   end do
+
+end subroutine make_distance_ranges
+
+subroutine count_tiles_of_snapshot
+
+   implicit none
+   integer*4   :: isnapshot,itile
+
+   snapshot%n_tiles = 0
+   do isnapshot = para%snapshot_min,para%snapshot_max
+      do itile = 1,size(tile)
+         if ((snapshot(isnapshot)%dmax>=tile(itile)%dmin).and.(snapshot(isnapshot)%dmin<=tile(itile)%dmax)) then
+            snapshot(isnapshot)%n_tiles = snapshot(isnapshot)%n_tiles+1
+         end if
+      end do
+   end do
+   
+end subroutine count_tiles_of_snapshot
+
 logical function is_in_fov(sph)
 
    implicit none
    
    type(type_spherical),intent(in)  :: sph   ! spherical coordinates in rad and box side lengths
    
-   is_in_fov = (sph%dc>=fov%dc(1)).and.(sph%dc<=fov%dc(2)).and. &
-             & (sph%ra>=fov%ra(1)).and.(sph%ra<=fov%ra(2)).and. &
-             & (sph%dec>=fov%dec(1)).and.(sph%dec<=fov%dec(2))
+   if (fov%ra(1)<fov%ra(2)) then
+   
+      is_in_fov = (sph%dc>=fov%dc(1)).and.(sph%dc<=fov%dc(2)).and. &
+                & (sph%ra>=fov%ra(1)).and.(sph%ra<=fov%ra(2)).and. &
+                & (sph%dec>=fov%dec(1)).and.(sph%dec<=fov%dec(2))
+                
+   else
+   
+      is_in_fov = (sph%dc>=fov%dc(1)).and.(sph%dc<=fov%dc(2)).and. &
+                & (sph%ra>=fov%ra(1)).or.(sph%ra<=fov%ra(2)).and. &
+                & (sph%dec>=fov%dec(1)).and.(sph%dec<=fov%dec(2))
+      
+   end if
              
 end function is_in_fov
 
@@ -100,7 +198,7 @@ subroutine get_position_range
    
    if (fov%ra(1)<0.0) call error('ra_min must be >=0')
    if (fov%ra(2)>360.0) call error('ra_max must be <=360')
-   if (fov%ra(2)<=fov%ra(1)) call error('ra_min must be smaller than ra_max')
+   if (fov%ra(2)==fov%ra(1)) call error('ra_min cannot be equal to ra_max')
    
    if (fov%dec(1)<-90.0) call error('dec_min must be >=-90')
    if (fov%dec(2)>+90.0) call error('dec_max must be <=90')
@@ -280,6 +378,12 @@ subroutine make_shell_list
             shell(ishell)%dmax = shell(ishell)%dmin+1.0
          end if
          r = shell(ishell)%dmax
+         
+         ! truncate last shell to maximum distance
+         if (shell(ishell)%dmax>fov%dc(2)) then
+            if (ishell/=nshell) call deverror('shell too large')
+            shell(ishell)%dmax = fov%dc(2)
+         end if
       
          ! random transformation
          call assign_random_transformation(shell(ishell)%transformation,.false.)
@@ -327,7 +431,7 @@ subroutine assign_random_transformation(tr,discrete_rotation)
    real*4,parameter :: rzx(24) = real((/+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+1,+1,+1,+1,-1,-1,-1,-1/),4)
    real*4,parameter :: rzy(24) = real((/+0,+0,+1,-1,+0,+0,+1,-1,+0,+0,+1,-1,+0,+0,+1,-1,+0,+0,+0,+0,+0,+0,+0,+0/),4)
    real*4,parameter :: rzz(24) = real((/+1,-1,+0,+0,-1,+1,+0,+0,-1,+1,+0,+0,+1,-1,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0/),4)
-   integer*4,parameter :: zrotations(4) = (/1,5,19,23/)
+   integer*4,parameter :: zrotations(4) = (/1,6,10,13/)
    
    ! choose random proper rotation
    if (para%rotate) then
@@ -340,7 +444,7 @@ subroutine assign_random_transformation(tr,discrete_rotation)
          tr%rotation = reshape((/rxx(k),rxy(k),rxz(k),ryx(k),ryy(k),ryz(k),rzx(k),rzy(k),rzz(k)/),(/3,3/))
       else
          if (devoption('zrotation')) then
-            axis = (/0.0,1.0,0.0/)
+            axis = (/0.0,0.0,1.0/)
          else
             axis = get_random_unit_vector(modern=para%modern_prng)
          end if
@@ -363,7 +467,7 @@ subroutine assign_random_transformation(tr,discrete_rotation)
       do d = 1,3
          tr%translation(d) = get_random_uniform_number(0.0,1.0,modern=para%modern_prng)
       end do
-      if (devoption('xytranslation')) tr%translation(2) = 0.0
+      if (devoption('xytranslation')) tr%translation(3) = 0.0
    else
       tr%translation = 0
    end if
@@ -599,5 +703,106 @@ function sph_deg_l(sph) result(s)
    s = type_spherical(dc=sph%dc*para%box_side,ra=sph%ra/unit%degree,dec=sph%dec/unit%degree)
    
 end function sph_deg_l
+
+subroutine write_hdf5_tiling(filename_hdf5)
+
+   implicit none
+   character(*),intent(in)                      :: filename_hdf5  ! output filename
+   character(:),allocatable                     :: name
+   integer*4                                    :: i
+
+   allocate(character(1)::name) ! empty allocation to avoid compiler flags
+
+   ! open HDF5 file
+   call hdf5_open(filename_hdf5,.true.)
+   
+   ! write group "snapshots"
+   name = 'snapshots/'
+   call hdf5_add_group(name)
+   call hdf5_write_data(name//'id',(/(i,i=para%snapshot_min,para%snapshot_max)/), &
+   & 'snapshot number')
+   call hdf5_write_data(name//'z',snapshot%redshift, &
+   & 'redshift corresponding to the cosmic time of this snapshot')
+   call hdf5_write_data(name//'dc_min',snapshot%dmin, &
+   & '[box side length] minimal comoving distance at which this snapshot is used')
+   call hdf5_write_data(name//'dc_max',snapshot%dmax, &
+   & '[box side length] maximal comoving distance at which this snapshot is used')
+   call hdf5_write_data(name//'n_tiles',snapshot%n_tiles, &
+   & 'Number of tiles this snapshot has been considered for, irrespective of whether a galaxy was selected')
+
+   ! write group "tiles"
+   name = 'tiles/'
+   call hdf5_add_group(name)
+   call hdf5_write_data(name//'tile_id',(/(i,i=1,size(tile),1)/),'index of cubic tile')
+   call hdf5_write_data(name//'shell_id',tile%shell,'index of the shell containing the cubic tile')
+   call hdf5_write_data(name//'center_x',tile%ix(1),'[box side length] x-coordinate of tile centre')
+   call hdf5_write_data(name//'center_y',tile%ix(2),'[box side length] y-coordinate of tile centre')
+   call hdf5_write_data(name//'center_z',tile%ix(3),'[box side length] z-coordinate of tile centre')
+   call hdf5_write_data(name//'dc_min',tile%dmin,'[box side length] minimum comoving distance of tile')
+   call hdf5_write_data(name//'dc_max',tile%dmax,'[box side length] maximum comoving distance of tile')
+   call hdf5_add_group(name//'transformation')
+   call hdf5_write_data(name//'transformation/rotation_xx',tile%transformation%rotation(1,1),'xx-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_xy',tile%transformation%rotation(1,2),'xy-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_xz',tile%transformation%rotation(1,3),'xz-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_yx',tile%transformation%rotation(2,1),'yx-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_yy',tile%transformation%rotation(2,2),'yy-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_yz',tile%transformation%rotation(2,3),'yz-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_zx',tile%transformation%rotation(3,1),'zx-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_zy',tile%transformation%rotation(3,2),'zy-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_zz',tile%transformation%rotation(3,3),'zz-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/translation_x',tile%transformation%translation(1), & 
+   & '[box side length] x-component of translation vector')
+   call hdf5_write_data(name//'transformation/translation_y',tile%transformation%translation(2), & 
+   & '[box side length] y-component of translation vector')
+   call hdf5_write_data(name//'transformation/translation_z',tile%transformation%translation(3), & 
+   & '[box side length] z-component of translation vector')
+   call hdf5_write_data(name//'transformation/inverted',tile%transformation%inverted, &
+   & 'logical flag for axis inversion (0 = no inversion, 1 = all three axes inverted)')
+
+   ! write group "shells"
+   name = 'shells/'
+   call hdf5_add_group(name)
+   call hdf5_write_data(name//'shell_id',(/(i,i=1,size(shell),1)/),'index of spherical shell')
+   call hdf5_write_data(name//'dc_min',shell%dmin,'[box side length] minimum comoving distance of shell')
+   call hdf5_write_data(name//'dc_max',shell%dmax,'[box side length] maximum comoving distance of shell')
+   call hdf5_add_group(name//'transformation')
+   call hdf5_write_data(name//'transformation/rotation_xx',shell%transformation%rotation(1,1),'xx-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_xy',shell%transformation%rotation(1,2),'xy-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_xz',shell%transformation%rotation(1,3),'xz-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_yx',shell%transformation%rotation(2,1),'yx-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_yy',shell%transformation%rotation(2,2),'yy-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_yz',shell%transformation%rotation(2,3),'yz-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_zx',shell%transformation%rotation(3,1),'zx-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_zy',shell%transformation%rotation(3,2),'zy-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/rotation_zz',shell%transformation%rotation(3,3),'zz-element3 of rotation matrix')
+   call hdf5_write_data(name//'transformation/translation_x',shell%transformation%translation(1), & 
+   & '[box side length] x-component of translation vector')
+   call hdf5_write_data(name//'transformation/translation_y',shell%transformation%translation(2), & 
+   & '[box side length] y-component of translation vector')
+   call hdf5_write_data(name//'transformation/translation_z',shell%transformation%translation(3), & 
+   & '[box side length] z-component of translation vector')
+   call hdf5_write_data(name//'transformation/inverted',shell%transformation%inverted, &
+   & 'logical flag for axis inversion (0 = no inversion, 1 = all three axes inverted)')
+   
+   ! write group "fov"
+   name = 'fov/'
+   call hdf5_add_group(name)
+   call hdf5_write_data(name//'dc_min',fov%dc(1)*para%box_side, &
+   & '[simulation length units] minimum comoving distance as defined in selection function')
+   call hdf5_write_data(name//'ra_min',fov%ra(1)/unit%degree, &
+   & '[deg] minimum right ascension as defined in selection function')
+   call hdf5_write_data(name//'dec_min',fov%dec(1)/unit%degree, &
+   & '[deg] minimum declination as defined in selection function')
+   call hdf5_write_data(name//'dc_max',fov%dc(2)*para%box_side, &
+   & '[simulation length units] maximum comoving distance as defined in selection function')
+   call hdf5_write_data(name//'ra_max',fov%ra(2)/unit%degree, &
+   & '[deg] maximum right ascension as defined in selection function')
+   call hdf5_write_data(name//'dec_max',fov%dec(2)/unit%degree, &
+   & '[deg] maximum declination as defined in selection function')
+
+   ! close HDF5 file
+   call hdf5_close()
+
+end subroutine write_hdf5_tiling
              
 end module module_tiling

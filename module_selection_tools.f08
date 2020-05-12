@@ -85,21 +85,21 @@ contains
       ! end do not edit
       
       real*4   :: x(3)
-      real*4,parameter  :: fraction = 0.3
+      real*4,parameter  :: fraction = 1
    
       select case (selection_type(pos,sam,sky,range,selected))
       case (return_position_range)
    
          ! here enter the individual maximal ranges of comoving distance, right ascension and declination covered by the survey,
          ! as restrictive as possible; these ranges are mandatory
-         range%dc = (/0.0,160.0/)      ! [simulation length units, here Mpc/h] comoving distance range
-         range%ra = (/15.0,345.0/)    ! [deg] range of right ascensions, bound to 0 to 360
+         range%dc = (/0.0,850.0/)      ! [simulation length units, here Mpc/h] comoving distance range
+         range%ra = (/330.0,210.0/)    ! [deg] range of right ascensions, bound to 0 to 360
          range%dec = (/-90.0,90.0/)    ! [deg] range of declinations, bound to -90 to +90
       
       case (select_by_pos)
       
          call sph2car(pos%dc,pos%ra*unit%degree,pos%dec*unit%degree,x)
-         selected = abs(x(2))<para%box_side*0.4999
+         selected = abs(x(3))<para%box_side*0.01!4999
       
       case (select_by_sam)
       
