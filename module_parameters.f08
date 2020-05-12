@@ -61,9 +61,9 @@ module module_parameters
       
       ! observer rotation
       logical*4            :: fix_observer_rotation
-      real*4               :: zaxis_ra  ! [rad]
-      real*4               :: zaxis_dec ! [rad]
-      real*4               :: xy_angle  ! [rad]
+      real*4               :: xaxis_ra  ! [rad]
+      real*4               :: xaxis_dec ! [rad]
+      real*4               :: yz_angle  ! [rad]
       
       ! observer velocity relative to CMB
       real*4               :: velocity_ra     ! [rad]
@@ -154,9 +154,9 @@ subroutine initialize_parameters
    call get_parameter_value(para%observer_y,'observer_y',min=0.0)
    call get_parameter_value(para%observer_z,'observer_z',min=0.0)
    call get_parameter_value(para%fix_observer_rotation,'fix_observer_rotation')
-   call get_parameter_value(para%zaxis_ra,'zaxis_ra',min=0.0,max=360.0)
-   call get_parameter_value(para%zaxis_dec,'zaxis_dec',min=-90.0,max=90.0)
-   call get_parameter_value(para%xy_angle,'xy_angle',min=0.0,max=360.0)
+   call get_parameter_value(para%xaxis_ra,'xaxis_ra',min=0.0,max=360.0)
+   call get_parameter_value(para%xaxis_dec,'xaxis_dec',min=-90.0,max=90.0)
+   call get_parameter_value(para%yz_angle,'yz_angle',min=0.0,max=360.0)
    call get_parameter_value(para%velocity_ra,'velocity_ra',min=0.0,max=360.0)
    call get_parameter_value(para%velocity_dec,'velocity_dec',min=-90.0,max=90.0)
    call get_parameter_value(para%velocity_norm,'velocity_norm',min=0.0)
@@ -204,9 +204,9 @@ subroutine convert_parameter_units
    implicit none
    
    ! convert degrees to radian
-   para%zaxis_ra = para%zaxis_ra*unit%degree
-   para%zaxis_dec = para%zaxis_dec*unit%degree
-   para%xy_angle = para%xy_angle*unit%degree
+   para%xaxis_ra = para%xaxis_ra*unit%degree
+   para%xaxis_dec = para%xaxis_dec*unit%degree
+   para%yz_angle = para%yz_angle*unit%degree
    para%velocity_ra = para%velocity_ra*unit%degree
    para%velocity_dec = para%velocity_dec*unit%degree
    para%search_angle = para%search_angle*unit%degree
@@ -215,7 +215,7 @@ end subroutine convert_parameter_units
 
 subroutine make_derived_parameters
 
-   call sph2car(para%velocity_norm,para%velocity_ra,para%velocity_dec,para%velocity_car,astro=.true.)
+   call sph2car(para%velocity_norm,para%velocity_ra,para%velocity_dec,para%velocity_car)
    call fix_observer
    para%modern_prng = trim(para%prng)=="F95"
 
@@ -226,8 +226,8 @@ contains
       implicit none
       real*4            :: rotationaxis(3)
       real*4            :: angle
-      real*4,parameter  :: ezsam(3) = (/0.0,0.0,1.0/) ! unit vector of the SAM z-axis inSAM coordinates
-      real*4            :: ezsky(3) ! unit vector of the SAM z-axis in Survey coordinates
+      real*4,parameter  :: exsam(3) = (/1.0,0.0,0.0/) ! unit vector along the x-axis
+      real*4            :: exsky(3) ! expression of exsam in sky coordinates
       
       if (para%fix_observer_position) then
       
@@ -242,14 +242,14 @@ contains
       if (para%fix_observer_rotation) then
       
          ! rotate SAM coordinates in the SAM xy-plane
-         para%observer_rotation = rotation_matrix(ezsam,para%xy_angle)
+         para%observer_rotation = rotation_matrix(exsam,para%yz_angle)
       
          ! rotate SAM coordinates onto survey coordinates
-         call sph2car(1.0,para%zaxis_ra,para%zaxis_dec,ezsky,astro=.true.)
-         rotationaxis = ezsam.cross.ezsky
+         call sph2car(1.0,para%xaxis_ra,para%xaxis_dec,exsky)
+         rotationaxis = exsam.cross.exsky
       
-         if ((norm(rotationaxis)>epsilon(1.0)).and.((ezsam.dot.ezsky)<1.0)) then
-            angle = acos(ezsam.dot.ezsky)
+         if ((norm(rotationaxis)>epsilon(1.0)).and.(abs(exsam.dot.exsky)<1.0)) then
+            angle = acos(exsam.dot.exsky)
             para%observer_rotation = matmul(rotation_matrix(rotationaxis,angle),para%observer_rotation)
          end if
          

@@ -98,7 +98,7 @@ contains
       
       case (select_by_pos)
       
-         call sph2car(pos%dc,pos%ra*unit%degree,pos%dec*unit%degree,x,astro=.true.)
+         call sph2car(pos%dc,pos%ra*unit%degree,pos%dec*unit%degree,x)
          selected = abs(x(2))<para%box_side*0.4999
       
       case (select_by_sam)

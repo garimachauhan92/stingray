@@ -821,11 +821,11 @@ subroutine make_hdf5(filename_hdf5,totstats,substats,isubvolume)
    & '[length units] z-coordinate of fixed observere position in the N-body box')
    call hdf5_write_data(name//'fixed_observer_rotation',para%fix_observer_rotation, &
    & 'logical flag specifying if the rotation between the N-body and sky coordinates at the observer is fixed (0=false, 1=true)')
-   call hdf5_write_data(name//'zaxis_ra',para%zaxis_ra/unit%degree, &
-   & '[deg] RA coordinate of the SAM z-axis in spherical survey coordinates')
-   call hdf5_write_data(name//'zaxis_dec',para%zaxis_dec/unit%degree, &
-   & '[deg] Dec coordinate the SAM z-axis in spherical survey coordinates')
-   call hdf5_write_data(name//'xy_angle',para%xy_angle/unit%degree,'[deg] Rotation of the SAM (x,y)-plane on the sky')
+   call hdf5_write_data(name//'xaxis_ra',para%xaxis_ra/unit%degree, &
+   & '[deg] RA coordinate of the SAM x-axis in spherical survey coordinates')
+   call hdf5_write_data(name//'xaxis_dec',para%xaxis_dec/unit%degree, &
+   & '[deg] Dec coordinate the SAM x-axis in spherical survey coordinates')
+   call hdf5_write_data(name//'yz_angle',para%yz_angle/unit%degree,'[deg] Rotation of the SAM (y,z)-plane on the sky')
    call hdf5_write_data(name//'velocity_norm',para%velocity_norm, &
    & '[km/s] observer velocity relative to CMB rest-frame')
    call hdf5_write_data(name//'velocity_ra',para%velocity_ra, &

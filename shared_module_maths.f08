@@ -170,38 +170,30 @@ end function get_random_rotation_matrix
 
 ! geometry *************************************************************************************************************************
 
-subroutine sph2car_real(radius,longitude,lattitude,x,astro)
+subroutine sph2car_real(radius,longitude,lattitude,x)
 
    ! convert spherical coordinates to cartesian coordinates
-   ! by default the origin on the sphere (longitude=lattitude=0) is identified with the x-axis, and the poles lie on the z-axis
-   ! if astro=.true., the origin on the sphere is identified with the z-axis, and the poles lie on the y-axis
+   ! the origin on the sphere (longitude=lattitude=0) is identified with the x-axis, and the poles lie on the z-axis
    
    real*4,intent(in)             :: radius
    real*4,intent(in)             :: longitude ! [rad]
    real*4,intent(in)             :: lattitude ! [rad]
    real*4,intent(out)            :: x(3) ! coordinates x,y,z
-   logical*4,intent(in),optional :: astro
    
    x = (/cos(longitude)*cos(lattitude), sin(longitude)*cos(lattitude), sin(lattitude)/)*radius
    
-   if (present(astro)) then
-      if (astro) x = (/x(2),x(3),x(1)/) ! from standard convention to astro convention
-   end if
-   
 end subroutine sph2car_real
 
-subroutine car2sph_real(x,radius,longitude,lattitude,astro)
+subroutine car2sph_real(x,radius,longitude,lattitude)
 
    ! convert cartesian coordinates to spherical coordinates
-   ! by default the origin on the sphere (longitude=lattitude=0) is identified with the x-axis, and the poles lie on the z-axis
-   ! if astro=.true., the origin on the sphere is identified with the z-axis, and the poles lie on the y-axis
+   ! the origin on the sphere (longitude=lattitude=0) is identified with the x-axis, and the poles lie on the z-axis
 
    real*4,intent(in)             :: x(3)  ! coordinates x,y,z
    real*4,intent(out)            :: radius
    real*4,intent(out)            :: longitude ! [rad]
    real*4,intent(out)            :: lattitude ! [rad]
    real*4                        :: x_(3)
-   logical*4,intent(in),optional :: astro
    
    radius = sqrt(sum(x**2))
    if (radius<epsilon(radius)) then
@@ -209,9 +201,6 @@ subroutine car2sph_real(x,radius,longitude,lattitude,astro)
       lattitude = 0.0
    else
       x_ = x
-      if (present(astro)) then
-         if (astro) x_ = (/x_(3),x_(1),x_(2)/) ! from astro convention to standard convention
-      end if
       longitude = modulo(atan2(x_(2),x_(1)),6.2831853071795862319959)
       lattitude = asin(min(1.0,x_(3)/radius)) ! "min" to avoid numerical issues if radius very close to x(2)
    end if

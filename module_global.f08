@@ -102,10 +102,12 @@ module module_global
    type(type_snapshot),allocatable     :: snapshot(:)
    
    interface car2sph
-
       procedure car2sph_compact
-   
    end interface car2sph
+   
+   interface sph2car
+      procedure sph2car_compact
+   end interface sph2car
 
    
 contains
@@ -117,9 +119,20 @@ contains
       type(type_spherical),intent(out) :: sph
       real*4                           :: x(3),radius,longitude,lattitude
       x = car
-      call car2sph(x,radius,longitude,lattitude,astro=.true.)
+      call car2sph(x,radius,longitude,lattitude)
       sph = type_spherical(dc=radius,ra=longitude,dec=lattitude)
    
    end subroutine car2sph_compact
+
+   subroutine sph2car_compact(sph,car)
+   
+      implicit none
+      type(type_spherical),intent(in)  :: sph
+      type(vector4),intent(out)        :: car
+      real*4                           :: x(3)
+      call sph2car(sph%dc,sph%ra,sph%dec,x)
+      car = x
+   
+   end subroutine sph2car_compact
 
 end module module_global

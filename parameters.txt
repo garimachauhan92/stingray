@@ -72,9 +72,9 @@ observer_z              0              [length unit] z-position of observer in s
 # symmetry operations (also set translate, rotate, invert to "n" in this case); if fix_observer_rotation is set to "n",
 # the values of zaxis_ra, zaxis_dec and xy_angle are ignored.
 fix_observer_rotation   n
-zaxis_ra                0              [deg] Right ascension in the mock sky of the z-axis of the tiling grid
-zaxis_dec               0              [deg] Declination in the mock sky of the z-axis of the tiling grid
-xy_angle                0              [deg] Rotation of the (x,y)-plane of the tiling grid
+xaxis_ra                0              [deg] Right ascension in the mock sky of the x-axis of the tiling grid
+xaxis_dec               0              [deg] Declination in the mock sky of the x-axis of the tiling grid
+yz_angle                0              [deg] Rotation of the sky around the x axis in the (y,z)-plane
 
 # Observer velocity relative to CMB (default values are based on the WMAP dipole in J2000 coordinates, arxiv 0803.0732)
 velocity_norm           369.0          [km/s] observer velocity relative to CMB rest-frame
@@ -103,9 +103,9 @@ keep_log                y              logical flag specifying if the logfile is
 # Developer options
 # Core-developers can use the optional parameter "devoptions" to specify a list of keywords for checking/developing purposes. This
 # parameter should not be present in standard runs. Available keywords are:
-# + xzgrid: reposition the galaxies in the cubic box onto an xz-grid; allows visualising the transformations
-# + xztranslation: limit translations to the xz-plane
-# + yrotation: limit rotations to rotations about the y-axis
+# + xygrid: reposition the galaxies in the cubic box onto an xy-grid; allows visualising the transformations
+# + xytranslation: limit translations to the xy-plane
+# + zrotation: limit rotations to rotations about the z-axis
 
 
 # PARAMETER SETS
@@ -153,38 +153,42 @@ parameterset dev1a
 options                 
 survey                  dev1
 path_input              /Users/do/Data/SURFS/L40_N512/shark/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_output             /Users/do/Dropbox/Code/Fortran/stingray/tests/dev1a              
 subvolume_max           0
 randomisation           none
 seed                    1
-devoptions              xztranslation,yrotation
+devoptions              xytranslation,zrotation
 end
 
 parameterset dev1b
 options                 
 survey                  dev1
 path_input              /Users/do/Data/SURFS/L40_N512/shark/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_output             /Users/do/Dropbox/Code/Fortran/stingray/tests/dev1b
 subvolume_max           0
 randomisation           single
 seed                    1
-devoptions              xztranslation,yrotation
+devoptions              xytranslation,zrotation
 end
 
 parameterset dev1c (used only by core-developers)
 options                 
 survey                  dev1
 path_input              /Users/do/Data/SURFS/L40_N512/shark/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_output             /Users/do/Dropbox/Code/Fortran/stingray/tests/dev1c
 subvolume_max           0
 randomisation           tiles
 seed                    1
-devoptions              xztranslation,yrotation
+devoptions              xytranslation,zrotation
 end
 
 parameterset dev1d
 options                 
 survey                  dev1
 path_input              /Users/do/Data/SURFS/L40_N512/shark/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_output             /Users/do/Dropbox/Code/Fortran/stingray/tests/dev1d
 subvolume_max           0
 randomisation           shells
 seed                    1
-devoptions              xztranslation,yrotation
+devoptions              xytranslation,zrotation
 end
