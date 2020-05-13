@@ -92,7 +92,7 @@ contains
    
          ! here enter the individual maximal ranges of comoving distance, right ascension and declination covered by the survey,
          ! as restrictive as possible; these ranges are mandatory
-         range%dc = (/0.0,850.0/)      ! [simulation length units, here Mpc/h] comoving distance range
+         range%dc = (/0.0,820.0/)      ! [simulation length units, here Mpc/h] comoving distance range
          range%ra = (/330.0,210.0/)    ! [deg] range of right ascensions, bound to 0 to 360
          range%dec = (/-90.0,90.0/)    ! [deg] range of declinations, bound to -90 to +90
       

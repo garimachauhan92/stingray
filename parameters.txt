@@ -47,19 +47,17 @@ omega_m                 auto           energy density of all matter relative to 
 omega_b                 auto           energy density of baryonic matter relative to closure density
 
 # Mapping of box-coordinates on to sky-coordinates
-# 1) Randomisation of cosmic structure, note:
-#    + if randomisation is set to "none", seed, translate, rotate and invert are ignored
-#    + setting translate=rotate=invert="n" is equivalent to setting randomisation to "none"
+# 1) Randomisation of cosmic structure
 randomisation           tiles          choose between "none", "tiles", "shells", "single"
-shell_tweaking          n              logical flag specifying if the shell radii can be slightly adjusted to match snapshot
+shell_tweaking          y              logical flag specifying if the shell radii can be slightly adjusted to match snapshot
 #                                      boundaries; only used if randomisation="shells"
 prng                    F77            type of pseudo-random number generator; choose "F77" or "F95". The GNU F77 PRNG generates a
 #                                      low-discrepancy sequence, which has poorer randomness properties than F95, but is strictly
 #                                      independent of the compiler, whereas F95 can depend on the latter at fixed seed.
 seed                    1              seed for the random number generator for randomisation (must be a positive integer)
-translate               y              logical flag specifying if random translations are applied
-rotate                  y              logical flag specifying if random rotations are applied
-invert                  y              logical flag specifying if random inversions are applied
+translate               y              logical flag specifying if random translations are applied (if randomisation not "none")
+rotate                  y              logical flag specifying if random rotations are applied (if randomisation not "none")
+invert                  y              logical flag specifying if random inversions are applied (if randomisation not "none")
 
 # 2) Fixation of observer position (overwrites parameter 'translate' for central tile/shell)
 # In most mock skies this option is not used, but it can be applied, for instance, to force the observer into a void;
@@ -154,34 +152,34 @@ end
 parameterset dev1a
 options                 
 survey                  dev1
-path_input              /Users/do/Data/SURFS/L40_N512/shark/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_input              /Users/do/Data/SURFS/L210_N1536/shark/Shark-TreeFixed-ReincPSO-kappa0p002/
 path_output             /Users/do/Dropbox/Code/Fortran/stingray/tests/dev1a              
 subvolume_max           0
 randomisation           none
 seed                    1
-devoptions              xytranslation,zrotation,xygrid
+devoptions              xytranslation,zrotation
 end
 
 parameterset dev1b
 options                 
 survey                  dev1
-path_input              /Users/do/Data/SURFS/L40_N512/shark/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_input              /Users/do/Data/SURFS/L210_N1536/shark/Shark-TreeFixed-ReincPSO-kappa0p002/
 path_output             /Users/do/Dropbox/Code/Fortran/stingray/tests/dev1b
 subvolume_max           0
 randomisation           single
 seed                    1
-devoptions              xytranslation,zrotation,xygrid
+devoptions              xytranslation,zrotation
 end
 
 parameterset dev1c (used only by core-developers)
 options                 
 survey                  dev1
-path_input              /Users/do/Data/SURFS/L40_N512/shark/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_input              /Users/do/Data/SURFS/L210_N1536/shark/Shark-TreeFixed-ReincPSO-kappa0p002/
 path_output             /Users/do/Dropbox/Code/Fortran/stingray/tests/dev1c
 subvolume_max           0
 randomisation           tiles
 seed                    1
-devoptions              xytranslation,zrotation,xygrid
+devoptions              xytranslation,zrotation
 end
 
 parameterset dev1d
@@ -191,6 +189,19 @@ path_input              /Users/do/Data/SURFS/L210_N1536/shark/Shark-TreeFixed-Re
 path_output             /Users/do/Dropbox/Code/Fortran/stingray/tests/dev1d
 subvolume_max           0
 randomisation           shells
+seed                    1
+devoptions              xytranslation,zrotation
+end
+
+
+parameterset dev1e
+options                 
+survey                  dev1
+path_input              /Users/do/Data/SURFS/L210_N1536/shark/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_output             /Users/do/Dropbox/Code/Fortran/stingray/tests/dev1e
+subvolume_max           0
+randomisation           shells
+shell_tweaking          y
 seed                    1
 devoptions              xytranslation,zrotation
 end

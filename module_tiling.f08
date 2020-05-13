@@ -348,9 +348,10 @@ end subroutine make_tile_list
 subroutine make_shell_list
 
    implicit none
-   integer*4         :: ishell,nshell
+   integer*4         :: ishell,nshell,isnapshot
    real*4            :: dr_first          ! thickness/radius of inner most shell
    real*4            :: r
+   real*4,parameter  :: dtweak = 0.25
    
    if (trim(para%randomisation)=='shells') then
       
@@ -389,6 +390,22 @@ subroutine make_shell_list
          call assign_random_transformation(shell(ishell)%transformation,.false.)
       
       end do
+      
+      if (para%shell_tweaking) then
+      
+         ! if radius of closest snapshot boundary is less than dtweak away, change shell radius to snapshot boundary
+         
+         do ishell = 1,nshell-1
+         
+            if (minval(abs(snapshot%dmax-shell(ishell)%dmax))<dtweak) then
+               isnapshot = minloc(abs(snapshot%dmax-shell(ishell)%dmax),1)+para%snapshot_min-1
+               shell(ishell)%dmax = snapshot(isnapshot)%dmax
+               shell(ishell+1)%dmin = snapshot(isnapshot)%dmax
+            end if
+         
+         end do
+         
+      end if
       
    else
    

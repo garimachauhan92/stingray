@@ -186,6 +186,8 @@ subroutine initialize_parameters
    if (.not.any(para%randomisation==(/'none   ','tiles  ','shells ','single '/))) &
    & call error('parameter "randomisation" must be either "none", "tiles", "shells" or "single"')
    if (.not.any(para%prng==(/'F77 ','F95 '/))) call error('parameter "prng" must be either "F77" or "F95"')
+   if ((.not.(para%translate.or.para%rotate.or.para%invert)).and.(.not.trim(para%randomisation)=='none')) &
+   & call error('either translate, rotate, or invert must be set to "y", if randomisation is not "none"')
    
    ! make output path
    para%path_output = dir(para%path_output,ispath=.true.)
