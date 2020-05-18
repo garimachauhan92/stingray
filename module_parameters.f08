@@ -49,7 +49,7 @@ module module_parameters
       real*4               :: omega_b
 
       ! large-scale structure randomisation
-      character(7)         :: randomisation ! randomisation type, "none", "tile", "shell" or "single"
+      character(7)         :: randomisation ! randomisation type
       logical*4            :: shell_tweaking
       character(4)         :: prng
       integer*4            :: seed  ! seed of random number generator (integer >=1)
@@ -183,11 +183,9 @@ subroutine initialize_parameters
    if (para%observer_x>para%box_side) call error('observer_x must not be larger than box_side')
    if (para%observer_y>para%box_side) call error('observer_y must not be larger than box_side')
    if (para%observer_z>para%box_side) call error('observer_z must not be larger than box_side')
-   if (.not.any(para%randomisation==(/'none   ','tiles  ','shells ','single '/))) &
-   & call error('parameter "randomisation" must be either "none", "tiles", "shells" or "single"')
+   if (.not.any(para%randomisation==(/'single ','tiles  ','shells '/))) &
+   & call error('parameter "randomisation" must be either "single", "tiles", "shells"')
    if (.not.any(para%prng==(/'F77 ','F95 '/))) call error('parameter "prng" must be either "F77" or "F95"')
-   if ((.not.(para%translate.or.para%rotate.or.para%invert)).and.(.not.trim(para%randomisation)=='none')) &
-   & call error('either translate, rotate, or invert must be set to "y", if randomisation is not "none"')
    
    ! make output path
    para%path_output = dir(para%path_output,ispath=.true.)
@@ -238,7 +236,7 @@ contains
       
       if (para%fix_observer_position) then
       
-         para%observer_translation = 0.5-(/para%observer_x,para%observer_y,para%observer_z/)/para%box_side
+         para%observer_translation = modulo(0.5-(/para%observer_x,para%observer_y,para%observer_z/)/para%box_side,1.0)
       
       else
       

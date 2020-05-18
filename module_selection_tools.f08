@@ -67,6 +67,7 @@ contains
    
       select case (trim(para%survey))
          case('dev1'); selection_function => selection_dev1
+         case('dev2'); selection_function => selection_dev2
       case default
          call error('unknown survey name: ',trim(para%survey))
       end select   
@@ -85,27 +86,61 @@ contains
       ! end do not edit
       
       real*4   :: x(3)
-      real*4,parameter  :: fraction = 1
+      real*4,parameter  :: fraction = 0.2
    
       select case (selection_type(pos,sam,sky,range,selected))
       case (return_position_range)
    
          ! here enter the individual maximal ranges of comoving distance, right ascension and declination covered by the survey,
          ! as restrictive as possible; these ranges are mandatory
-         range%dc = (/0.0,820.0/)      ! [simulation length units, here Mpc/h] comoving distance range
-         range%ra = (/330.0,210.0/)    ! [deg] range of right ascensions, bound to 0 to 360
-         range%dec = (/-90.0,90.0/)    ! [deg] range of declinations, bound to -90 to +90
+         range%dc = (/0.0,840.0/)      ! [simulation length units, here Mpc/h] comoving distance range
+         range%ra = (/0.0,360.0/)      ! [deg] range of right ascensions, bound to 0 to 360
+         range%dec = (/-30.0,90.0/)    ! [deg] range of declinations, bound to -90 to +90
       
       case (select_by_pos)
       
          call sph2car(pos%dc,pos%ra*unit%degree,pos%dec*unit%degree,x)
-         selected = abs(x(3))<para%box_side*0.01!4999
+         selected = abs(x(1)/para%box_side)<0.4999
       
       case (select_by_sam)
       
          x = sam%get_position()
-         selected = modulo((x(1)*sqrt(2.0_8)+x(2)*sqrt(3.0_8)+x(3)*sqrt(5.0_8))/real(para%box_side,8)*1e5_8,1.0_8)<real(fraction,8)
+         selected = abs(x(1)/para%box_side-0.5)<=0.5*fraction
+   
+      case (select_by_pos_and_sam)
+         
+      case (select_by_all)
       
+      end select
+   
+   end subroutine
+   
+   subroutine selection_dev2(pos,sam,sky,range,selected)
+
+      ! do not edit
+      implicit none
+      type(type_spherical),intent(in),optional     :: pos      ! has components dc [length unit of parameterfile], ra [deg], dec [deg]
+      type(type_sam),intent(in),optional           :: sam      ! has components as defined in the "module_user_routines_..."
+      type(type_sky_galaxy),intent(in),optional    :: sky      ! has components as defined in the "module_user_routines_..."
+      type(type_fov),intent(inout),optional        :: range    ! has components dc(2) [length unit], ra(2) [deg], dec(2) [deg]
+      logical,intent(inout),optional               :: selected
+      ! end do not edit
+      
+      select case (selection_type(pos,sam,sky,range,selected))
+      case (return_position_range)
+   
+         ! here enter the individual maximal ranges of comoving distance, right ascension and declination covered by the survey,
+         ! as restrictive as possible; these ranges are mandatory
+         range%dc = (/0.0,3000.0/)      ! [simulation length units, here Mpc/h] comoving distance range
+         range%ra = (/0.0,360.0/)    ! [deg] range of right ascensions, bound to 0 to 360
+         range%dec = (/-30.0,90.0/)    ! [deg] range of declinations, bound to -90 to +90
+      
+      case (select_by_pos)
+      
+      case (select_by_sam)
+      
+         selected = sam%is_group_center().and.modulo(sam%get_groupid(),10000_8)==1_8
+         
       case (select_by_pos_and_sam)
          
       case (select_by_all)

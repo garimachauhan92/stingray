@@ -19,7 +19,7 @@ module module_global
    
    ! Limits
    type type_limit
-      integer*4   :: n_tiles_max = 10000
+      integer*4   :: n_tiles_max = 100000
       integer*4   :: n_tiles_on_a_line_max = 100
       integer*4   :: n_snapshots_max = 10000                 ! use factors of 10 for readable galaxy indices
       integer*4   :: n_subvolumes_max = 10000                ! use factors of 10 for readable galaxy indices

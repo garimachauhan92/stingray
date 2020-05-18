@@ -79,18 +79,15 @@ subroutine make_inclination_and_pa(x,J,inclination,pa)
    real*4                           :: eNorth(3)      ! unit vector pointing north (or south) (orthoconal to LOS)
    real*4                           :: eEast(3)       ! unit vector pointing east (or west) (orthoconal to LOS)
    real*4                           :: normx,normJ
-   real*4                           :: rand(2)
    
    normx = norm(x)
-   if (normx<=epsilon(normx)) call error('make_inclination_and_pa: norm of x is zero.')
    normJ = norm(J)
    
-   if (normJ<=epsilon(normJ)) then
+   if ((normx<=epsilon(normx)).or.(normJ<=epsilon(normJ))) then
       
       ! assign random inclination
-      call random_number(rand)
-      pa = rand(1)*2*pi
-      inclination = acos(rand(2))
+      pa = get_random_uniform_number(0.0,2.0*pi,modern=para%modern_prng)
+      inclination = acos(get_random_uniform_number(0.0,1.0,modern=para%modern_prng))
       
    else
    

@@ -364,7 +364,7 @@ subroutine place_subvolume_into_tile(itile,isnapshot,isubvolume,sam,sam_sel,sam_
    real*4                                          :: xsam(3),xtile_min(3),xtile_max(3)
    real*4,allocatable                              :: xtile(:,:)
    logical                                         :: wrap_groups
-   logical                                         :: devoption_xygrid
+   logical                                         :: devoption_yzgrid
    
    type type_lim
       logical  :: survey = .false.
@@ -398,7 +398,7 @@ subroutine place_subvolume_into_tile(itile,isnapshot,isubvolume,sam,sam_sel,sam_
    n_galaxies = 0
    n_groups = 0
    prefixid = int(limit%n_galaxies_per_tile_max,8)*(int(limit%n_subvolumes_max,8)*int(isnapshot,8)+int(isubvolume,8))
-   devoption_xygrid = devoption('xygrid')
+   devoption_yzgrid = devoption('yzgrid')
    wrap_groups = trim(para%randomisation)=='tiles'
    
    ! make fixed base properties
@@ -432,10 +432,15 @@ subroutine place_subvolume_into_tile(itile,isnapshot,isubvolume,sam,sam_sel,sam_
       
          ! evaluate normalised position of object in sam-output
          xsam = sam(isam+k)%get_position()/para%box_side
-         if (devoption_xygrid) then
-            d = mod(isam+k,2)+1
-            xsam(d) = max(1,min(2,nint(xsam(d)*2+0.5)))/2.0-0.25
-            xsam(3) = 0.5 ! moves objects to the xy-plane
+         if (devoption_yzgrid) then
+            if (mod(sam(isam+k)%get_groupid(),11)==0_8) then
+               xsam(2) = (xsam(2)-0.5)*0.4+0.65
+               xsam(3) = 0.5
+            else if (mod(sam(isam+k)%get_groupid(),11)==1_8) then
+               xsam(3) = (xsam(3)-0.5)*0.4+0.65
+               xsam(2) = 0.5
+            end if
+            xsam(1) = 0.5
          end if
       
          ! apply tile-symmetry to normalised coordinates
@@ -450,7 +455,7 @@ subroutine place_subvolume_into_tile(itile,isnapshot,isubvolume,sam,sam_sel,sam_
       end do
       dx = maxval(xtile_max-xtile_min)
       if ((dx>limit%group_diameter_max).and.(dx<1.0-limit%group_diameter_max)) then
-         if (.not.devoption_xygrid) call error('group wider than box side times ',limit%group_diameter_max)
+         if (.not.devoption_yzgrid) call error('group wider than box side times ',limit%group_diameter_max)
       end if
       if (dx>0.5) then ! group is wrapped
          if (wrap_groups) then
@@ -475,7 +480,8 @@ subroutine place_subvolume_into_tile(itile,isnapshot,isubvolume,sam,sam_sel,sam_
       
          ! check if distance is in the range covered by snapshot isnapshot
          selected = .true.
-         if ((base%spherical%dc<snapshot(isnapshot)%dmin).or.(base%spherical%dc>=snapshot(isnapshot)%dmax)) then
+         if ((base%spherical%dc<snapshot(isnapshot)%dmin).or.(base%spherical%dc>=snapshot(isnapshot)%dmax).or.&
+            & (base%spherical%dc<=epsilon(0.0))) then ! exclude objects that exactly coincide with the observer
             group%has_galaxy_outside%snapshot = .true.
             selected = .false.
          end if

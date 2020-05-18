@@ -48,16 +48,16 @@ omega_b                 auto           energy density of baryonic matter relativ
 
 # Mapping of box-coordinates on to sky-coordinates
 # 1) Randomisation of cosmic structure
-randomisation           tiles          choose between "none", "tiles", "shells", "single"
+randomisation           tiles          choose between "single", "tiles", "shells"
 shell_tweaking          y              logical flag specifying if the shell radii can be slightly adjusted to match snapshot
 #                                      boundaries; only used if randomisation="shells"
 prng                    F77            type of pseudo-random number generator; choose "F77" or "F95". The GNU F77 PRNG generates a
 #                                      low-discrepancy sequence, which has poorer randomness properties than F95, but is strictly
 #                                      independent of the compiler, whereas F95 can depend on the latter at fixed seed.
 seed                    1              seed for the random number generator for randomisation (must be a positive integer)
-translate               y              logical flag specifying if random translations are applied (if randomisation not "none")
-rotate                  y              logical flag specifying if random rotations are applied (if randomisation not "none")
-invert                  y              logical flag specifying if random inversions are applied (if randomisation not "none")
+translate               y              logical flag specifying if random translations are applied
+rotate                  y              logical flag specifying if random rotations are applied
+invert                  y              logical flag specifying if random inversions are applie
 
 # 2) Fixation of observer position (overwrites parameter 'translate' for central tile/shell)
 # In most mock skies this option is not used, but it can be applied, for instance, to force the observer into a void;
@@ -103,9 +103,9 @@ keep_log                y              logical flag specifying if the logfile is
 # Developer options
 # Core-developers can use the optional parameter "devoptions" to specify a list of keywords for checking/developing purposes. This
 # parameter should not be present in standard runs. Available keywords are:
-# + xygrid: reposition the galaxies in the cubic box onto an xy-grid; allows visualising the transformations
-# + xytranslation: limit translations to the xy-plane
-# + zrotation: limit rotations to rotations about the z-axis
+# + yzgrid: reposition the galaxies in the cubic box onto an yz-grid; allows visualising the transformations
+# + yztranslation: limit translations to the yz-plane
+# + xrotation: limit rotations to rotations about the x-axis
 
 
 # PARAMETER SETS
@@ -153,11 +153,14 @@ parameterset dev1a
 options                 
 survey                  dev1
 path_input              /Users/do/Data/SURFS/L210_N1536/shark/Shark-TreeFixed-ReincPSO-kappa0p002/
-path_output             /Users/do/Dropbox/Code/Fortran/stingray/tests/dev1a              
+path_output             /Users/do/Dropbox/Code/Fortran/stingray/tests/dev1a
 subvolume_max           0
-randomisation           none
+randomisation           single
+translate               n
+rotate                  n
+invert                  n
 seed                    1
-devoptions              xytranslation,zrotation
+devoptions              yztranslation,xrotation,yzgrid
 end
 
 parameterset dev1b
@@ -167,8 +170,8 @@ path_input              /Users/do/Data/SURFS/L210_N1536/shark/Shark-TreeFixed-Re
 path_output             /Users/do/Dropbox/Code/Fortran/stingray/tests/dev1b
 subvolume_max           0
 randomisation           single
-seed                    1
-devoptions              xytranslation,zrotation
+seed                    4
+devoptions              yztranslation,xrotation,yzgrid
 end
 
 parameterset dev1c (used only by core-developers)
@@ -179,7 +182,7 @@ path_output             /Users/do/Dropbox/Code/Fortran/stingray/tests/dev1c
 subvolume_max           0
 randomisation           tiles
 seed                    1
-devoptions              xytranslation,zrotation
+devoptions              yztranslation,xrotation,yzgrid
 end
 
 parameterset dev1d
@@ -187,10 +190,15 @@ options
 survey                  dev1
 path_input              /Users/do/Data/SURFS/L210_N1536/shark/Shark-TreeFixed-ReincPSO-kappa0p002/
 path_output             /Users/do/Dropbox/Code/Fortran/stingray/tests/dev1d
+shell_tweaking          n
 subvolume_max           0
 randomisation           shells
-seed                    1
-devoptions              xytranslation,zrotation
+seed                    3
+fix_observer_position   y
+observer_x              105 mid plane
+observer_y              138
+observer_z              169
+devoptions              yztranslation,xrotation,yzgrid
 end
 
 
@@ -202,6 +210,70 @@ path_output             /Users/do/Dropbox/Code/Fortran/stingray/tests/dev1e
 subvolume_max           0
 randomisation           shells
 shell_tweaking          y
+seed                    3
+fix_observer_position   y
+observer_x              105 mid plane
+observer_y              138
+observer_z              169
+devoptions              yztranslation,xrotation,yzgrid
+end
+
+parameterset dev2a
+options                 
+survey                  dev2
+path_input              /Users/do/Data/SURFS/L210_N1536/shark/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_output             /Users/do/Dropbox/Code/Fortran/stingray/tests/dev2a              
+subvolume_max           0
+snapshot_min            199  to ensure that galaxies do not move
+randomisation           single
+translate               n
+rotate                  n
+invert                  n
 seed                    1
-devoptions              xytranslation,zrotation
+end
+
+parameterset dev2b
+options                 
+survey                  dev2
+path_input              /Users/do/Data/SURFS/L210_N1536/shark/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_output             /Users/do/Dropbox/Code/Fortran/stingray/tests/dev2b           
+subvolume_max           0
+snapshot_min            199  to ensure that galaxies do not move
+randomisation           single
+seed                    2
+end
+
+parameterset dev2c
+options                 
+survey                  dev2
+path_input              /Users/do/Data/SURFS/L210_N1536/shark/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_output             /Users/do/Dropbox/Code/Fortran/stingray/tests/dev2c              
+subvolume_max           0
+snapshot_min            199  to ensure that galaxies do not move
+randomisation           tiles
+seed                    1
+end
+
+parameterset dev2d
+options                 
+survey                  dev2
+path_input              /Users/do/Data/SURFS/L210_N1536/shark/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_output             /Users/do/Dropbox/Code/Fortran/stingray/tests/dev2d           
+subvolume_max           0
+snapshot_min            199  to ensure that galaxies do not move
+randomisation           shells
+shell_tweaking          n
+seed                    1
+end
+
+parameterset dev2e
+options                 
+survey                  dev2
+path_input              /Users/do/Data/SURFS/L210_N1536/shark/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_output             /Users/do/Dropbox/Code/Fortran/stingray/tests/dev2e              
+subvolume_max           0
+snapshot_min            199  to ensure that galaxies do not move
+randomisation           shells
+shell_tweaking          y
+seed                    1
 end

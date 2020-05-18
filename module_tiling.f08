@@ -415,7 +415,8 @@ subroutine make_shell_list
       shell(1)%dmin = fov%dc(1)
       shell(1)%dmax = fov%dc(2)
       
-      if (trim(para%randomisation)=='single') call assign_random_transformation(shell(1)%transformation,.false.)
+      if ((trim(para%randomisation)=='single').or.(trim(para%randomisation)=='tiles')) &
+      & call assign_random_transformation(shell(1)%transformation,.false.)
    
    end if
    
@@ -448,20 +449,19 @@ subroutine assign_random_transformation(tr,discrete_rotation)
    real*4,parameter :: rzx(24) = real((/+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0,+1,+1,+1,+1,-1,-1,-1,-1/),4)
    real*4,parameter :: rzy(24) = real((/+0,+0,+1,-1,+0,+0,+1,-1,+0,+0,+1,-1,+0,+0,+1,-1,+0,+0,+0,+0,+0,+0,+0,+0/),4)
    real*4,parameter :: rzz(24) = real((/+1,-1,+0,+0,-1,+1,+0,+0,-1,+1,+0,+0,+1,-1,+0,+0,+0,+0,+0,+0,+0,+0,+0,+0/),4)
-   integer*4,parameter :: zrotations(4) = (/1,6,10,13/)
    
    ! choose random proper rotation
    if (para%rotate) then
       if (discrete_rotation) then
-         if (devoption('zrotation')) then
-            k = zrotations(get_random_integer(1,4,modern=para%modern_prng))
+         if (devoption('xrotation')) then
+            k = get_random_integer(1,4,modern=para%modern_prng)
          else
             k = get_random_integer(1,24,modern=para%modern_prng)
          end if
          tr%rotation = reshape((/rxx(k),rxy(k),rxz(k),ryx(k),ryy(k),ryz(k),rzx(k),rzy(k),rzz(k)/),(/3,3/))
       else
-         if (devoption('zrotation')) then
-            axis = (/0.0,0.0,1.0/)
+         if (devoption('xrotation')) then
+            axis = (/1.0,0.0,0.0/)
          else
             axis = get_random_unit_vector(modern=para%modern_prng)
          end if
@@ -484,7 +484,7 @@ subroutine assign_random_transformation(tr,discrete_rotation)
       do d = 1,3
          tr%translation(d) = get_random_uniform_number(0.0,1.0,modern=para%modern_prng)
       end do
-      if (devoption('xytranslation')) tr%translation(3) = 0.0
+      if (devoption('yztranslation')) tr%translation(1) = 0.0
    else
       tr%translation = 0
    end if

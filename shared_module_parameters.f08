@@ -6,11 +6,12 @@
 ! The parameter file has to be an ascii-file, with one parameter per line, structured as:
 ! ----------------------------------------------------------------------
 ! # Example file
-! parameter1_name    parameter1_value  # number of marbles
-! parameter2_name    parameter2_value  # name of player
+! parameter1_name    parameter1_value  number of marbles
+! parameter2_name    parameter2_value  name of player
 ! ...
 ! ----------------------------------------------------------------------
 ! Empty lines are ignored, as well as all text following the #-symbol in non-empty lines. Use this symbol for comments.
+! Text that follows the parameter values in the same line is also ignored (e.g. "number of marbles" is ignored). 
 !
 ! Advanced structure
 ! It is possible do define different parameter-sets in a single parameter file, using the syntax:
