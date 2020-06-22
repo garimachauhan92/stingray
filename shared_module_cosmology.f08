@@ -9,7 +9,7 @@ use shared_module_core
 
 private
 
-public   :: cosmology   ! structure with cosmological parameters
+public   :: cosmology      ! structure with cosmological parameters
 public   :: set_cosmology  ! set cosmological parameters, either to a default set or to any custom values
 public   :: redshift_to_dc
 public   :: dc_to_redshift

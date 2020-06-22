@@ -429,8 +429,8 @@ subroutine make_sky_galaxy(sky_galaxy,sam,base)
       do j = 1,nco
          LCO = sam%lco_disk(j)+sam%lco_bulge(j) ! [Jy km/s Mpc^2] velocity-integrated luminosity of CO(j-[j-1]) transition
          wavelength = const%c/(fCO*1e9)/j ! [m] rest-frame wavelength of CO(j-[j-1]) transition
-         sky_galaxy%coline_flux_int(j) = LCO/(4.0*pi*dl**2)*1e-23*wavelength ! [W/m^2] observed integrated flux
-         sky_galaxy%coline_flux_int_vel(j) = convert_intflux2velintflux(sky_galaxy%coline_flux_int(j),wavelength,sky_galaxy%zobs)
+         sky_galaxy%coline_flux_int(j) = LCO/(4.0*pi*dl**2)*1e-23/wavelength ! [W/m^2] integrated flux
+         sky_galaxy%coline_flux_int_vel(j) = LCO/(4.0*pi*dl**2)*(1+sky_galaxy%zobs) ! [Jy km/s] velocity-integrated flux
       end do
    end if
    

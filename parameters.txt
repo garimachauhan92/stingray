@@ -92,7 +92,7 @@ volume_search_level     0              [-] value >=0, giving the number of searc
 # For the semi-analytic model shark, the currently available keywords are:
 # + line_shapes: generate shape-parameters for atomic and molecular emission lines
 # + luminosities: generate CO and AGN luminosities (requires the files CO_SLED.hdf5) with the shark outputs
-options                 
+options                 luminosities
 make_groups             y              logical flag specifying if groups are produced
 
 # Output file options
@@ -103,8 +103,8 @@ keep_log                y              logical flag specifying if the logfile is
 # Developer options
 # Core-developers can use the optional parameter "devoptions" to specify a list of keywords for checking/developing purposes. This
 # parameter should not be present in standard runs. Available keywords are:
-# + yzgrid: reposition the galaxies in the cubic box onto an yz-grid; allows visualising the transformations
-# + yztranslation: limit translations to the yz-plane
+# + yzgrid: reposition the galaxies from the cubic box to a patter in the yz-plane; allows visualising the transformations
+# + yztranslation: limit translations to the yz-plane, orthogonal to the x-axis
 # + xrotation: limit rotations to rotations about the x-axis
 
 
