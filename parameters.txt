@@ -131,7 +131,7 @@ end
 parameterset wallaby-micro-hyades_1
 survey                  wallaby-micro
 path_input              /mnt/su3ctm/clagos/SHARK_Out/micro-SURFS/Shark-TreeFixed-ReincPSO-kappa0p002/
-path_output             /home/dobreschkow/
+path_output             /mnt/su3ctm/dobreschkow/stingray/
 seed                    1
 filename_sky            mocksky_wallaby_micro_1
 options                 luminosities,line_shapes
@@ -140,7 +140,7 @@ end
 parameterset wallaby-medi-hyades_1
 survey                  wallaby-medi
 path_input              /mnt/su3ctm/clagos/SHARK_Out/medi-SURFS/Shark-TreeFixed-ReincPSO-kappa0p002/
-path_output             /home/dobreschkow/
+path_output             /mnt/su3ctm/dobreschkow/stingray/
 seed                    1
 filename_sky            mocksky_wallaby_medi_1
 options                 luminosities,line_shapes
@@ -149,7 +149,7 @@ end
 parameterset wallaby-micro-hyades_2
 survey                  wallaby-micro
 path_input              /mnt/su3ctm/clagos/SHARK_Out/micro-SURFS/Shark-TreeFixed-ReincPSO-kappa0p002/
-path_output             /home/dobreschkow/
+path_output             /mnt/su3ctm/dobreschkow/stingray/
 seed                    2
 filename_sky            mocksky_wallaby_micro_2
 options                 luminosities,line_shapes
@@ -158,7 +158,7 @@ end
 parameterset wallaby-medi-hyades_2
 survey                  wallaby-medi
 path_input              /mnt/su3ctm/clagos/SHARK_Out/medi-SURFS/Shark-TreeFixed-ReincPSO-kappa0p002/
-path_output             /home/dobreschkow/
+path_output             /mnt/su3ctm/dobreschkow/stingray/
 seed                    2
 filename_sky            mocksky_wallaby_medi_2
 options                 luminosities,line_shapes
@@ -167,7 +167,7 @@ end
 parameterset wallaby-micro-hyades_3
 survey                  wallaby-micro
 path_input              /mnt/su3ctm/clagos/SHARK_Out/micro-SURFS/Shark-TreeFixed-ReincPSO-kappa0p002/
-path_output             /home/dobreschkow/
+path_output             /mnt/su3ctm/dobreschkow/stingray/
 seed                    3
 filename_sky            mocksky_wallaby_micro_3
 options                 luminosities,line_shapes
@@ -176,7 +176,7 @@ end
 parameterset wallaby-medi-hyades_3
 survey                  wallaby-medi
 path_input              /mnt/su3ctm/clagos/SHARK_Out/medi-SURFS/Shark-TreeFixed-ReincPSO-kappa0p002/
-path_output             /home/dobreschkow/
+path_output             /mnt/su3ctm/dobreschkow/stingray/
 seed                    3
 filename_sky            mocksky_wallaby_medi_3
 options                 luminosities,line_shapes
@@ -185,7 +185,7 @@ end
 parameterset wallaby-micro-hyades_4
 survey                  wallaby-micro
 path_input              /mnt/su3ctm/clagos/SHARK_Out/micro-SURFS/Shark-TreeFixed-ReincPSO-kappa0p002/
-path_output             /home/dobreschkow/
+path_output             /mnt/su3ctm/dobreschkow/stingray/
 seed                    4
 filename_sky            mocksky_wallaby_micro_4
 options                 luminosities,line_shapes
@@ -194,7 +194,7 @@ end
 parameterset wallaby-medi-hyades_4
 survey                  wallaby-medi
 path_input              /mnt/su3ctm/clagos/SHARK_Out/medi-SURFS/Shark-TreeFixed-ReincPSO-kappa0p002/
-path_output             /home/dobreschkow/
+path_output             /mnt/su3ctm/dobreschkow/stingray/
 seed                    4
 filename_sky            mocksky_wallaby_medi_4
 options                 luminosities,line_shapes
@@ -203,7 +203,7 @@ end
 parameterset wallaby-micro-hyades_5
 survey                  wallaby-micro
 path_input              /mnt/su3ctm/clagos/SHARK_Out/micro-SURFS/Shark-TreeFixed-ReincPSO-kappa0p002/
-path_output             /home/dobreschkow/
+path_output             /mnt/su3ctm/dobreschkow/stingray/
 seed                    5
 filename_sky            mocksky_wallaby_micro_5
 options                 luminosities,line_shapes
@@ -212,7 +212,7 @@ end
 parameterset wallaby-medi-hyades_5
 survey                  wallaby-medi
 path_input              /mnt/su3ctm/clagos/SHARK_Out/medi-SURFS/Shark-TreeFixed-ReincPSO-kappa0p002/
-path_output             /home/dobreschkow/
+path_output             /mnt/su3ctm/dobreschkow/stingray/
 seed                    5
 filename_sky            mocksky_wallaby_medi_5
 options                 luminosities,line_shapes
