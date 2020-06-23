@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#SBATCH --job-name=surfsuite
+#SBATCH --job-name=stingray
 #
 #SBATCH --ntasks=6
 #SBATCH --time=48:00:00
