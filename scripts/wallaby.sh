@@ -2,7 +2,7 @@
 #
 #SBATCH --job-name=surfsuite
 #
-#SBATCH --ntasks=1
+#SBATCH --ntasks=6
 #SBATCH --time=48:00:00
 #SBATCH --mem-per-cpu=16000
 
