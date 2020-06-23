@@ -804,7 +804,8 @@ subroutine load_sam_snapshot(isnapshot,isubvolume,sam)
       do i = 1,nopt
          do while (sam(j)%id_galaxy.ne.tmp(i)%id_galaxy)
             j = j+1
-            if (j>n) call error('galaxy IDs of luminosity data cannot be matched to main galaxy file')
+            if (j>n) call error('galaxy IDs of luminosity data cannot be matched to main galaxy file ('// &
+            & val2str(isnapshot)//','//val2str(isubvolume)//','//val2str(tmp(i)%id_galaxy)//')')
          end do
          do k = 1,nco
             sam(j)%lco_bulge(k)  = tmp(i)%lco_bulge(k)

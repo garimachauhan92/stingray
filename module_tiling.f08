@@ -18,7 +18,7 @@ module module_tiling
    public   :: apply_tile_symmetry
    public   :: map_tile_onto_sky
    public   :: sph_deg_l
-   public   :: write_hdf5_tiling
+   public   :: write_hdf5_mapping
    public   :: snapshot,tile,shell ! read-only
    
    private
@@ -721,7 +721,7 @@ function sph_deg_l(sph) result(s)
    
 end function sph_deg_l
 
-subroutine write_hdf5_tiling(filename_hdf5)
+subroutine write_hdf5_mapping(filename_hdf5)
 
    implicit none
    character(*),intent(in)                      :: filename_hdf5  ! output filename
@@ -732,9 +732,10 @@ subroutine write_hdf5_tiling(filename_hdf5)
 
    ! open HDF5 file
    call hdf5_open(filename_hdf5,.true.)
+   call hdf5_add_group('mapping/')
    
    ! write group "snapshots"
-   name = 'snapshots/'
+   name = 'mapping/snapshots/'
    call hdf5_add_group(name)
    call hdf5_write_data(name//'id',(/(i,i=para%snapshot_min,para%snapshot_max)/), &
    & 'snapshot number')
@@ -748,7 +749,7 @@ subroutine write_hdf5_tiling(filename_hdf5)
    & 'Number of tiles this snapshot has been considered for, irrespective of whether a galaxy was selected')
 
    ! write group "tiles"
-   name = 'tiles/'
+   name = 'mapping/tiles/'
    call hdf5_add_group(name)
    call hdf5_write_data(name//'tile_id',(/(i,i=1,size(tile),1)/),'index of cubic tile')
    call hdf5_write_data(name//'shell_id',tile%shell,'index of the shell containing the cubic tile')
@@ -777,7 +778,7 @@ subroutine write_hdf5_tiling(filename_hdf5)
    & 'logical flag for axis inversion (0 = no inversion, 1 = all three axes inverted)')
 
    ! write group "shells"
-   name = 'shells/'
+   name = 'mapping/shells/'
    call hdf5_add_group(name)
    call hdf5_write_data(name//'shell_id',(/(i,i=1,size(shell),1)/),'index of spherical shell')
    call hdf5_write_data(name//'dc_min',shell%dmin,'[box side length] minimum comoving distance of shell')
@@ -802,7 +803,7 @@ subroutine write_hdf5_tiling(filename_hdf5)
    & 'logical flag for axis inversion (0 = no inversion, 1 = all three axes inverted)')
    
    ! write group "fov"
-   name = 'fov/'
+   name = 'mapping/fov/'
    call hdf5_add_group(name)
    call hdf5_write_data(name//'dc_min',fov%dc(1)*para%box_side, &
    & '[simulation length units] minimum comoving distance as defined in selection function')
@@ -820,6 +821,6 @@ subroutine write_hdf5_tiling(filename_hdf5)
    ! close HDF5 file
    call hdf5_close()
 
-end subroutine write_hdf5_tiling
+end subroutine write_hdf5_mapping
              
 end module module_tiling

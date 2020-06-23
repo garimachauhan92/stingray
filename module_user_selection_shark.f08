@@ -383,7 +383,7 @@ subroutine selection_wallaby(dcmin,dcmax,pos,sam,sky,range,selected)
    case (select_by_pos)
    case (select_by_sam)
    case (select_by_pos_and_sam)
-      mhi = (sam%matom_disk+sam%matom_bulge)/para%h/1.35
+      mhi = (sam%matom_disk+sam%matom_bulge)/para%h/1.35 ! [Msun] HI mass
       selected = mhi>wallaby_fmin*(pos%dc/para%h)**2 ! rough preselection to accelerate computation
    case (select_by_all)
       mhi = (sam%matom_disk+sam%matom_bulge)/para%h/1.35

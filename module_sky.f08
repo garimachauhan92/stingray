@@ -665,7 +665,7 @@ subroutine write_sky_to_hdf5
       call out('Write file ',trim(filename))
       call initialize_hdf5(trim(filename),totstats)
       call write_hdf5_parameters(trim(filename))
-      call write_hdf5_tiling(trim(filename))
+      call write_hdf5_mapping(trim(filename))
       call write_hdf5(trim(filename),sky_galaxy,sky_group)
       
       ! delete binary files
@@ -707,7 +707,7 @@ subroutine write_sky_to_hdf5
          ! write new file
          call initialize_hdf5(trim(filename),totstats,substats,isubvolume)
          call write_hdf5_parameters(trim(filename))
-         call write_hdf5_tiling(trim(filename))
+         call write_hdf5_mapping(trim(filename))
          call write_hdf5(trim(filename),sky_galaxy,sky_group)
       
          ! free memory

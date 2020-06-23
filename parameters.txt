@@ -33,8 +33,8 @@ path_input              data/shark/
 filename_sky            mock           Filename of output file, without extension '.hdf5' and without subvolume index
 
 # Snapshot parameters
-box_side                auto           [length_unit] comoving side-length of simulation box in multiples of length_unit
 length_unit             auto           [m] SI-value of comoving length unit
+box_side                auto           [length_unit] comoving side-length of simulation box in multiples of length_unit
 snapshot_min            auto           index of earliest snapshot used for the mock sky
 snapshot_max            auto           index of latest snapshot used for the mock sky
 subvolume_min           auto           index of first subvolume used for the mock sky
@@ -57,7 +57,7 @@ prng                    F77            type of pseudo-random number generator; c
 seed                    1              seed for the random number generator for randomisation (must be a positive integer)
 translate               y              logical flag specifying if random translations are applied
 rotate                  y              logical flag specifying if random rotations are applied
-invert                  y              logical flag specifying if random inversions are applie
+invert                  y              logical flag specifying if random inversions are applied
 
 # 2) Fixation of observer position (overwrites parameter 'translate' for central tile/shell)
 # In most mock skies this option is not used, but it can be applied, for instance, to force the observer into a void;
@@ -92,7 +92,7 @@ volume_search_level     0              [-] value >=0, giving the number of searc
 # For the semi-analytic model shark, the currently available keywords are:
 # + line_shapes: generate shape-parameters for atomic and molecular emission lines
 # + luminosities: generate CO and AGN luminosities (requires the files CO_SLED.hdf5) with the shark outputs
-options                 luminosities
+options                 
 make_groups             y              logical flag specifying if groups are produced
 
 # Output file options
@@ -114,12 +114,108 @@ parameterset wallaby-micro-mac
 survey                  wallaby-micro
 path_input              /Users/do/Data/SURFS/L40_N512/shark/Shark-TreeFixed-ReincPSO-kappa0p002/
 path_output             /Users/do/Data/SURFS/L40_N512/stingray/
+seed                    2
+filename_sky            mocksky_wallaby_micro_2
+options                 luminosities,line_shapes
 end
 
 parameterset wallaby-medi-mac
 survey                  wallaby-medi
 path_input              /Users/do/Data/SURFS/L210_N1536/shark/Shark-TreeFixed-ReincPSO-kappa0p002/
 path_output             /Users/do/Data/SURFS/L210_N1536/stingray/
+seed                    1
+filename_sky            mocksky_wallaby_medi_1
+options                 luminosities,line_shapes
+end
+
+parameterset wallaby-micro-hyades_1
+survey                  wallaby-micro
+path_input              /mnt/su3ctm/clagos/SHARK_Out/micro-SURFS/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_output             /home/dobreschkow/
+seed                    1
+filename_sky            mocksky_wallaby_micro_1
+options                 luminosities,line_shapes
+end
+
+parameterset wallaby-medi-hyades_1
+survey                  wallaby-medi
+path_input              /mnt/su3ctm/clagos/SHARK_Out/medi-SURFS/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_output             /home/dobreschkow/
+seed                    1
+filename_sky            mocksky_wallaby_medi_1
+options                 luminosities,line_shapes
+end
+
+parameterset wallaby-micro-hyades_2
+survey                  wallaby-micro
+path_input              /mnt/su3ctm/clagos/SHARK_Out/micro-SURFS/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_output             /home/dobreschkow/
+seed                    2
+filename_sky            mocksky_wallaby_micro_2
+options                 luminosities,line_shapes
+end
+
+parameterset wallaby-medi-hyades_2
+survey                  wallaby-medi
+path_input              /mnt/su3ctm/clagos/SHARK_Out/medi-SURFS/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_output             /home/dobreschkow/
+seed                    2
+filename_sky            mocksky_wallaby_medi_2
+options                 luminosities,line_shapes
+end
+
+parameterset wallaby-micro-hyades_3
+survey                  wallaby-micro
+path_input              /mnt/su3ctm/clagos/SHARK_Out/micro-SURFS/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_output             /home/dobreschkow/
+seed                    3
+filename_sky            mocksky_wallaby_micro_3
+options                 luminosities,line_shapes
+end
+
+parameterset wallaby-medi-hyades_3
+survey                  wallaby-medi
+path_input              /mnt/su3ctm/clagos/SHARK_Out/medi-SURFS/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_output             /home/dobreschkow/
+seed                    3
+filename_sky            mocksky_wallaby_medi_3
+options                 luminosities,line_shapes
+end
+
+parameterset wallaby-micro-hyades_4
+survey                  wallaby-micro
+path_input              /mnt/su3ctm/clagos/SHARK_Out/micro-SURFS/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_output             /home/dobreschkow/
+seed                    4
+filename_sky            mocksky_wallaby_micro_4
+options                 luminosities,line_shapes
+end
+
+parameterset wallaby-medi-hyades_4
+survey                  wallaby-medi
+path_input              /mnt/su3ctm/clagos/SHARK_Out/medi-SURFS/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_output             /home/dobreschkow/
+seed                    4
+filename_sky            mocksky_wallaby_medi_4
+options                 luminosities,line_shapes
+end
+
+parameterset wallaby-micro-hyades_5
+survey                  wallaby-micro
+path_input              /mnt/su3ctm/clagos/SHARK_Out/micro-SURFS/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_output             /home/dobreschkow/
+seed                    5
+filename_sky            mocksky_wallaby_micro_5
+options                 luminosities,line_shapes
+end
+
+parameterset wallaby-medi-hyades_5
+survey                  wallaby-medi
+path_input              /mnt/su3ctm/clagos/SHARK_Out/medi-SURFS/Shark-TreeFixed-ReincPSO-kappa0p002/
+path_output             /home/dobreschkow/
+seed                    5
+filename_sky            mocksky_wallaby_medi_5
+options                 luminosities,line_shapes
 end
 
 parameterset waves-g23-hyades
