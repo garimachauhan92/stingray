@@ -51,7 +51,7 @@ character(len=255),parameter  :: parameter_filename_default = &
 
 type type_sam
 
-   integer*4   :: id_galaxy      ! unique galaxy ID
+   integer*8   :: id_galaxy      ! unique galaxy ID
    integer*8   :: id_halo        ! unique ID of parent halo
    integer*4   :: snapshot       ! snapshot ID
    integer*4   :: subvolume      ! subvolume index
